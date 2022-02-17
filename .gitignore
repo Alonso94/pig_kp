@@ -1,0 +1,13 @@
+MIME/
+runs/
+datasets/
+wandb/
+
+.vscode/
+build/
+dist/
+
+# Compile files
+**/__pycache__/
+*.pyc
+*.egg-info
