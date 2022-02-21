@@ -70,6 +70,24 @@ class DatasetFromData(Dataset):
         cv2.imshow('sample',frames)
         cv2.waitKey(0)
 
+    def sample_video_from_data(self, n_frames):
+        # sample the index of the starting frame
+        idx=np.random.randint(0,len(self.human_data)-n_frames)
+        # find to which task the idx belongs by using the task_start_idx
+        task=np.where(self.task_start_idx<=idx)[0][-1]
+        # if the idx is less than task_start_idx[task]+n_frames then shift it
+        if idx<self.task_start_idx[task]+n_frames:
+            idx=self.task_start_idx[task]+n_frames
+        # if idx is greater than the length of the task then shift it
+        if idx>self.task_start_idx[task+1]:
+            idx=self.task_start_idx[task+1]-1
+        # The sample is n_frames frames ending at idx
+        human_sample=self.human_data[idx-n_frames:idx]
+        robot_sample=self.robot_data[idx-n_frames:idx]
+        # form the sample
+        sample={'human':human_sample,'robot':robot_sample}
+        return sample
+
     def read_frames_from_video(self,video_path):
         # read the video
         video=cv2.VideoCapture(video_path)
