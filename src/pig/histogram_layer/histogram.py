@@ -2,25 +2,25 @@ from torch import nn
 from torch.autograd import Function
 import torch
 
-import entropy_layer
+import histogram_layer
 
-class EntropyFunction(Function):
+class HistogramFunction(Function):
     @staticmethod
     def forward(ctx, inputs, bandwidth):
-        output=entropy_layer.forward(inputs, bandwidth)
+        output=histogram_layer.forward(inputs, bandwidth)
         ctx.save_for_backward(inputs)
         ctx.bandwidth=bandwidth
         return output
 
     @staticmethod
-    def backward(ctx, d_entropy):
+    def backward(ctx, d_histogram):
         inputs= ctx.saved_tensors
-        d_input=entropy_layer.backward(inputs, d_entropy, ctx.bandwidth)
+        d_input=histogram_layer.backward(inputs, d_histogram, ctx.bandwidth)
         return d_input
 
-class Entropy(nn.Module):
+class Histogram(nn.Module):
     def __init__(self, region_size, bandwidth):
-        super(Entropy, self).__init__()
+        super(Histogram, self).__init__()
         self.region_size=region_size
         self.bandwidth=bandwidth
 
@@ -38,18 +38,14 @@ class Entropy(nn.Module):
         # generate the patches
         # N x SF x C x H-R+1 x W-R+1 x R x R
         patches=input.as_strided(size, stride)
-        # reshape to N*SF, C x (H-R+1) * (W-R+1) x R^2
+        # reshape to N*SF x C x (H-R+1) x (W-R+1) x R^2
         patches=patches.contiguous()
-        patches=patches.view(N*SF, C,(H-R+1)*(W-R+1),R*R)
-        # move channels to the last dimension
-        patches=patches.permute(0,2,3,1)
-        output=EntropyFunction.apply(patches, self.bandwidth)
-        # reshape the output to N*SF*C x (H-R+1) x (W-R+1)
-        output=output.view(N*SF,2,H-R+1,W-R+1)
+        patches=patches.view(N*SF,C,H-R+1,W-R+1,R*R)
+        output=HistogramFunction.apply(patches, self.bandwidth)
         # add zero padding to the output to match the size of the input
-        row_pad=torch.zeros(N*SF,2,H-R+1,int(R/2)).to(input.device)
+        row_pad=torch.zeros(N*SF,C,H-R+1,int(R/2)).to(input.device)
         output=torch.cat([row_pad, output,row_pad], dim=3)
-        col_pad=torch.zeros(N*SF,2,int(R/2),W).to(input.device)
+        col_pad=torch.zeros(N*SF,C,int(R/2),W).to(input.device)
         output=torch.cat([col_pad, output,col_pad], dim=2)
-        output=output.view(N,SF,2,H,W)
+        output=output.view(N,SF,C,H,W)
         return output

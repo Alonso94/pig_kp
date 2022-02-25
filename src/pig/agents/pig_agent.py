@@ -1,6 +1,7 @@
 from pig.data.dataset_from_data import DatasetFromData
 from pig.models.kpae import Encoder
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
+from pig.losses.pig import PatchInfoGainLoss
 
 import torch
 import torch.nn as nn
@@ -27,6 +28,8 @@ class PIG_agent(nn.Module):
         self.model=Encoder(config).to(device)
         # initialize the optimizer
         self.optimizer=torch.optim.Adam(self.model.parameters(),lr=config['learning_rate'])
+        # initialize the loss
+        self.pig_loss=PatchInfoGainLoss(config)
         # initialize the wandb
         wandb.watch(self.model)
         # initialize the trajectory visualizer
@@ -51,7 +54,6 @@ class PIG_agent(nn.Module):
         self.model.train()
 
     def train(self):
-        self.log_trajectory()
         # train the model
         for epoch in trange(self.epochs, desc="Training the model"):
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch)):
@@ -64,8 +66,6 @@ class PIG_agent(nn.Module):
                 # get the output
                 coords1=self.model(human_data)
                 coords2=self.model(robot_data)
-                print('coords1',coords1.shape)
-                print('coords2',coords2.shape)
                 # compute the loss
                 loss=self.pig_loss(coords1,human_data) + self.pig_loss(coords2,robot_data)
                 # compute the gradients

@@ -88,7 +88,7 @@ class DatasetFromData(Dataset):
         sample={'human':human_sample,'robot':robot_sample}
         return sample
 
-    def read_frames_from_video(self,video_path):
+    def read_frames_from_video(self,video_path, depth=False):
         # read the video
         video=cv2.VideoCapture(video_path)
         # get the number of frames
@@ -101,6 +101,11 @@ class DatasetFromData(Dataset):
             if self.width!=None and self.height!=None:
                 # resize the frame
                 frame=cv2.resize(frame,(self.width,self.height))
+            if depth:
+                # convert to gray scale
+                frame=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # edd a dimension for the channel
+                frame=frame[:,:,np.newaxis]
             # add the frame to the list
             frames.append(frame)
         # close the video
@@ -123,9 +128,9 @@ class DatasetFromData(Dataset):
                 human_videos=sorted([video for video in videos if video.startswith('hd')])
                 robot_videos=sorted([video for video in videos if video.startswith('rd')])
                 # read the frames
-                human_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[0]))
+                human_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[0]),depth=True)
                 human_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[1]))
-                robot_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[0]))
+                robot_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[0]),depth=True)
                 robot_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[1]))
                 # unify the length of the frames
                 n_frames=min(human_depth_frames.shape[0],human_rgb_frames.shape[0],robot_depth_frames.shape[0],robot_rgb_frames.shape[0])

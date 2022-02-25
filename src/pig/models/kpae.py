@@ -35,8 +35,9 @@ class Encoder(nn.Module):
         self.fm_conv_4=nn.ConvTranspose2d(self.numn_feature_maps*2,self.numn_feature_maps,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_4.weight)
         self.bn4=nn.BatchNorm2d(self.numn_feature_maps)
-        self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406, 0.4, 0.4, 0.4],
-                                     std=[0.229, 0.224, 0.225, 0.225, 0.225, 0.225])
+        mean=[0.485, 0.456, 0.406]+[0.4]*(self.channels-3)
+        std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
+        self.normalize = transforms.Normalize(mean,std)
         self.count=0
     
 
