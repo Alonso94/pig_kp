@@ -22,7 +22,7 @@ setup(name='histogram_layer',
                    )
                    ],
                    cmdclass={'build_ext': cpp_extension.BuildExtension} )
-                   
+
 
 setup(name='joint_entropy_layer',
       ext_modules=[

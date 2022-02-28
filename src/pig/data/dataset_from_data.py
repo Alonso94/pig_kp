@@ -22,7 +22,7 @@ class DatasetFromData(Dataset):
         self.tasks=config['tasks'].split(',')
 
         # load the dataset if it's already been created
-        data_path='datasets/dataset_{0}tasks_{1}demos_{2}frames.pt'.format(len(self.tasks), self.number_of_demos,self.number_of_stacked_frames)
+        data_path='datasets/dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames.pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames)
         if os.path.exists(data_path):
             print('Loading dataset from',data_path)
             d = torch.load(data_path)
