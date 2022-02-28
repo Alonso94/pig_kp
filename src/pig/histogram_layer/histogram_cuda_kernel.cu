@@ -69,11 +69,11 @@ namespace{
 // region_size: the size of the region
 // bandwidth: the bandwidth of the kernel
 torch::Tensor histogram_cuda_forward(torch::Tensor x, float bandwidth){
-    printf("histogram_cuda_forward\n");
-    cudaError_t cudaStatus;
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
+    // printf("histogram_cuda_forward\n");
+    // cudaError_t cudaStatus;
+	// cudaEvent_t start, stop;
+	// cudaEventCreate(&start);
+	// cudaEventCreate(&stop);
     // the parameters for the kernel function
     const float L=1.0/255.0;
     const float B=bandwidth;
@@ -92,9 +92,9 @@ torch::Tensor histogram_cuda_forward(torch::Tensor x, float bandwidth){
     // define the output tensor
     // N x C x H x W
     auto histogram_output = torch::zeros({N,256}).to(x.device());
-    printf("grid: %d %d %d\n",grid.x,grid.y,grid.z);
-    printf("threads: %d %d\n",threads.x,threads.y);
-    cudaEventRecord(start,0);
+    // printf("grid: %d %d %d\n",grid.x,grid.y,grid.z);
+    // printf("threads: %d %d\n",threads.x,threads.y);
+    // cudaEventRecord(start,0);
     // call the kernel
     AT_DISPATCH_FLOATING_TYPES(x.type(),"histogram_cuda_forward",([&]{
         histogram_cuda_forward_kernel<float><<<grid,threads>>>(
@@ -102,25 +102,26 @@ torch::Tensor histogram_cuda_forward(torch::Tensor x, float bandwidth){
             histogram_output.packed_accessor32<float,2,torch::RestrictPtrTraits>(),
              L,  B);
     }));
-    cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-    // Check for any errors launching the kernel
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+    cudaDeviceSynchronize();
+    // cudaEventRecord(stop, 0);
+	// cudaEventSynchronize(stop);
+    // // Check for any errors launching the kernel
+	// cudaStatus = cudaGetLastError();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+	// }
 
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-	}
+	// // cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// // any errors encountered during the launch.
+	// cudaStatus = cudaDeviceSynchronize();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+	// }
 
-	float milliseconds = 0;
-	cudaEventElapsedTime(&milliseconds, start, stop);
+	// float milliseconds = 0;
+	// cudaEventElapsedTime(&milliseconds, start, stop);
 
-	std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
+	// std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
 
     // return the output
     return histogram_output;

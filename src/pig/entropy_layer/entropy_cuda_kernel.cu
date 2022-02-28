@@ -159,11 +159,11 @@ namespace{
 // region_size: the size of the region
 // bandwidth: the bandwidth of the kernel
 torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
-    printf("conditional_entropy_cuda_forward\n");
-    cudaError_t cudaStatus;
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
+    // printf("conditional_entropy_cuda_forward\n");
+    // cudaError_t cudaStatus;
+	// cudaEvent_t start, stop;
+	// cudaEventCreate(&start);
+	// cudaEventCreate(&stop);
     // the parameters for the kernel function
     const float L=1.0/255.0;
     const float B=bandwidth;
@@ -183,16 +183,16 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     if (C==1) output_channels=1;
     else output_channels=2; 
     auto entropy_output = torch::zeros({N,output_channels,P}).to(x.device());
-    int blockSize;
-	int minGridSize;
-	cudaOccupancyMaxPotentialBlockSize( &minGridSize, &blockSize, entropy_cuda_forward_kernel<float>); 
-	printf("BlockSize: %d\n", blockSize);
-	printf("MinGridSize: %d\n", minGridSize);
+    // int blockSize;
+	// int minGridSize;
+	// cudaOccupancyMaxPotentialBlockSize( &minGridSize, &blockSize, entropy_cuda_forward_kernel<float>); 
+	// printf("BlockSize: %d\n", blockSize);
+	// printf("MinGridSize: %d\n", minGridSize);
 
-    printf("input tensor shape: %d %d %d\n",N, P, R);
-    printf("grid: %d %d %d\n",grid.x,grid.y,grid.z);
-    printf("threads: %d %d\n",threads.x,threads.y);
-    cudaEventRecord(start,0);
+    // printf("input tensor shape: %d %d %d\n",N, P, R);
+    // printf("grid: %d %d %d\n",grid.x,grid.y,grid.z);
+    // printf("threads: %d %d\n",threads.x,threads.y);
+    // cudaEventRecord(start,0);
     cudaFuncSetAttribute(entropy_cuda_forward_kernel<float>,cudaFuncAttributeMaxDynamicSharedMemorySize,65536);
     cudaFuncSetCacheConfig(entropy_cuda_forward_kernel<float>,cudaFuncCachePreferL1);
     // call the kernel
@@ -214,25 +214,25 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     }
     cudaDeviceSynchronize();
 
-    cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-    // Check for any errors launching the kernel
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+    // cudaEventRecord(stop, 0);
+	// cudaEventSynchronize(stop);
+    // // Check for any errors launching the kernel
+	// cudaStatus = cudaGetLastError();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+	// }
 
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-	}
+	// // cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// // any errors encountered during the launch.
+	// cudaStatus = cudaDeviceSynchronize();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+	// }
 
-	float milliseconds = 0;
-	cudaEventElapsedTime(&milliseconds, start, stop);
+	// float milliseconds = 0;
+	// cudaEventElapsedTime(&milliseconds, start, stop);
 
-	std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
+	// std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
 
     // return the output
     return entropy_output;
@@ -245,11 +245,11 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
 torch::Tensor entropy_cuda_backward(torch::Tensor x,
                             torch::Tensor d_entropy_out,
                             float bandwidth){
-    printf("conditional_entropy_cuda_forward\n");
-    cudaError_t cudaStatus;
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
+    // printf("conditional_entropy_cuda_forward\n");
+    // cudaError_t cudaStatus;
+	// cudaEvent_t start, stop;
+	// cudaEventCreate(&start);
+	// cudaEventCreate(&stop);
     // the parameters for the kernel function
     const float L=1.0/255.0;
     const float B=bandwidth;
@@ -269,7 +269,7 @@ torch::Tensor entropy_cuda_backward(torch::Tensor x,
     if (C==1) output_channels=1;
     else output_channels=2; 
     auto grad_out = torch::zeros({N,output_channels,P,R}).to(x.device());
-    cudaEventRecord(start,0);
+    // cudaEventRecord(start,0);
     // call the kernel
     if (C>1){
         AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_backward",([&]{
@@ -291,25 +291,25 @@ torch::Tensor entropy_cuda_backward(torch::Tensor x,
     }
     cudaDeviceSynchronize();
 
-    cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-    // Check for any errors launching the kernel
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+    // cudaEventRecord(stop, 0);
+	// cudaEventSynchronize(stop);
+    // // Check for any errors launching the kernel
+	// cudaStatus = cudaGetLastError();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+	// }
 
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-	}
+	// // cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// // any errors encountered during the launch.
+	// cudaStatus = cudaDeviceSynchronize();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+	// }
 
-	float milliseconds = 0;
-	cudaEventElapsedTime(&milliseconds, start, stop);
+	// float milliseconds = 0;
+	// cudaEventElapsedTime(&milliseconds, start, stop);
 
-	std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
+	// std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
 
     // return the output
     return grad_out;
