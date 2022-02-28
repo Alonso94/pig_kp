@@ -64,6 +64,28 @@ namespace{
     }
     // the kernel function to compute the histogram
     template<typename scalar_t>
+    __global__ void depth_entropy_cuda_forward_kernel(torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> input,
+                                                        torch::PackedTensorAccessor32<scalar_t,3,torch::RestrictPtrTraits> entropy_output,
+                                                        float L,
+                                                        float B,
+                                                        int patch_size                                                       
+                                                        ){
+        // the image index
+        int n = blockIdx.y;
+        // the index of the first patch
+        int p = blockIdx.x;
+        // the thread index
+        int t = threadIdx.x;
+        float depth_prob=0;
+        #pragma unroll
+        for(int i=0;i<patch_size;i++){
+            depth_prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
+        }
+        // update the output
+        atomicAdd(&entropy_output[n][0][p],entropy(depth_prob));
+    }
+    // the backward kernel function to compute the gradient
+    template<typename scalar_t>
     __global__ void entropy_cuda_backward_kernel(torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> input,
                                                 torch::PackedTensorAccessor32<scalar_t,3,torch::RestrictPtrTraits> d_entropy_out,
                                                 torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> grad_out,
@@ -101,6 +123,35 @@ namespace{
             grad_out[n][1][p][i] += d_depth_prob * depth_prob;
         }
     }
+    template<typename scalar_t>
+    __global__ void depth_entropy_cuda_backward_kernel(torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> input,
+                                                torch::PackedTensorAccessor32<scalar_t,3,torch::RestrictPtrTraits> d_entropy_out,
+                                                torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> grad_out,
+                                                float L,
+                                                float B,
+                                                int patch_size
+                                                ){
+        // the image index
+        int n = blockIdx.y;
+        // the index of the patch
+        int p = blockIdx.x;
+        // the thread index
+        int t = threadIdx.x;
+        float depth_prob=0;
+        #pragma unroll
+        for(int i=0;i<patch_size;i++){
+            depth_prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
+        }
+        // the derivative of the entropy function
+        float d_depth_prob = d_entropy_out[n][0][p] * d_entropy(depth_prob);
+        depth_prob=0;
+        // compute the gradient
+        #pragma unroll
+        for(int i=0;i<patch_size;i++){
+            depth_prob += d_kernel(input[n][p][i][0]-t,L,B)/patch_size;
+            grad_out[n][0][p][i] += d_depth_prob * depth_prob;
+        }
+    }
 } // namespace
 
 // the forward pass of the entropy layer
@@ -121,13 +172,17 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     int N = x.size(0);
     int P = x.size(1);
     int R = x.size(2);
+    int C = x.size(3);
     // block size
     dim3 threads(256);
     // grid size
     dim3 grid(P,N);
     // define the output tensor
     // N x 2 x P
-    auto entropy_output = torch::zeros({N,2,P}).to(x.device());
+    int output_channels;
+    if (C==1) output_channels=1;
+    else output_channels=2; 
+    auto entropy_output = torch::zeros({N,output_channels,P}).to(x.device());
     int blockSize;
 	int minGridSize;
 	cudaOccupancyMaxPotentialBlockSize( &minGridSize, &blockSize, entropy_cuda_forward_kernel<float>); 
@@ -141,12 +196,22 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     cudaFuncSetAttribute(entropy_cuda_forward_kernel<float>,cudaFuncAttributeMaxDynamicSharedMemorySize,65536);
     cudaFuncSetCacheConfig(entropy_cuda_forward_kernel<float>,cudaFuncCachePreferL1);
     // call the kernel
-    AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_forward",([&]{
+    if (C>1){
+        AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_forward",([&]{
         entropy_cuda_forward_kernel<float><<<grid,threads>>>(
             x.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
             entropy_output.packed_accessor32<float,3,torch::RestrictPtrTraits>(),
                 L,  B,  R);
-    }));
+        }));
+    }
+    else{
+        AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_forward",([&]{
+        depth_entropy_cuda_forward_kernel<float><<<grid,threads>>>(
+            x.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
+            entropy_output.packed_accessor32<float,3,torch::RestrictPtrTraits>(),
+                L,  B,  R);
+        }));
+    }
     cudaDeviceSynchronize();
 
     cudaEventRecord(stop, 0);
@@ -193,22 +258,37 @@ torch::Tensor entropy_cuda_backward(torch::Tensor x,
     int N = x.size(0);
     int P = x.size(1);
     int R = x.size(2);
+    int C = x.size(3);
     // block size
     dim3 threads(256);
     // grid size
     dim3 grid(P,N);
     // define the output tensor (the gradient)
     // N x 2 x P x R 
-    auto grad_out = torch::zeros({N,2,P,R}).to(x.device());
+    int output_channels;
+    if (C==1) output_channels=1;
+    else output_channels=2; 
+    auto grad_out = torch::zeros({N,output_channels,P,R}).to(x.device());
     cudaEventRecord(start,0);
     // call the kernel
-    AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_backward",([&]{
+    if (C>1){
+        AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_backward",([&]{
         entropy_cuda_backward_kernel<float><<<grid,threads>>>(
             x.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
             d_entropy_out.packed_accessor32<float,3,torch::RestrictPtrTraits>(),
             grad_out.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
              L,  B,  R);
-    }));
+        }));
+    }
+    else{
+        AT_DISPATCH_FLOATING_TYPES(x.type(),"entropy_cuda_backward",([&]{
+        depth_entropy_cuda_backward_kernel<float><<<grid,threads>>>(
+            x.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
+            d_entropy_out.packed_accessor32<float,3,torch::RestrictPtrTraits>(),
+            grad_out.packed_accessor32<float,4,torch::RestrictPtrTraits>(),
+             L,  B,  R);
+        }));
+    }
     cudaDeviceSynchronize();
 
     cudaEventRecord(stop, 0);

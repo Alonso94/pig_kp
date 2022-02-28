@@ -39,7 +39,7 @@ class PatchInfoGainLoss(nn.Module):
         axes[1].imshow(entropy[0].detach().cpu().numpy(),cmap='jet')
         axes[1].set_title('Entropy of the RGB channels')
         # plot the entropy of the depth channels
-        axes[2].imshow(entropy[1].detach().cpu().numpy(),cmap='jet')
+        axes[2].imshow(entropy[0].detach().cpu().numpy(),cmap='jet')
         axes[2].set_title('Entropy of the depth channels')
         # remove the axis ticks and the borders
         for ax in axes.flat:
@@ -68,8 +68,6 @@ class PatchInfoGainLoss(nn.Module):
         plt.show()
 
     def plot_histogram(self,image,histogram):
-        print(image.shape)
-        print(histogram.shape)
         # plot the image and the entropy
         # create a subplot
         fig,axes=plt.subplots(1,2)
@@ -91,12 +89,12 @@ class PatchInfoGainLoss(nn.Module):
     def forward(self, coords, images):
         N,SF,KP,_=coords.shape
         N,SF,C,H,W=images.shape
-        hist=self.histogram_layer(images)
-        self.plot_histogram(images[0,0],hist[0,0])
-        # compute the entropy of the RGB channels   
-        entropy=self.entropy_layer(images)
-        self.plot_entropy(images[0,0],entropy[0,0])
-        joint_entropy=self.joint_entropy_layer(images)
-        self.plot_joint_entropy(images[0,:2],joint_entropy[0,1],label='Joint')
-        conditiona_netropy=joint_entropy-entropy
-        self.plot_joint_entropy(images[0,:2],conditiona_netropy[0,1],label='Conditional')
+        # hist=self.histogram_layer(images)
+        # self.plot_histogram(images[0,0],hist[0,0])
+        # compute depth entropy
+        depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))
+        self.plot_entropy(images[0,0],depth_entropy[0,0])
+        # joint_entropy=self.joint_entropy_layer(images)
+        # self.plot_joint_entropy(images[0,:2],joint_entropy[0,1],label='Joint')
+        # conditiona_netropy=joint_entropy-entropy
+        # self.plot_joint_entropy(images[0,:2],conditiona_netropy[0,1],label='Conditional')

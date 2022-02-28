@@ -44,12 +44,13 @@ class Entropy(nn.Module):
         # move channels to the last dimension
         patches=patches.permute(0,2,3,1)
         output=EntropyFunction.apply(patches, self.bandwidth)
+        out_channels=1 if C==1 else 2
         # reshape the output to N*SF*C x (H-R+1) x (W-R+1)
-        output=output.view(N*SF,2,H-R+1,W-R+1)
+        output=output.view(N*SF,out_channels,H-R+1,W-R+1)
         # add zero padding to the output to match the size of the input
-        row_pad=torch.zeros(N*SF,2,H-R+1,int(R/2)).to(input.device)
+        row_pad=torch.zeros(N*SF,out_channels,H-R+1,int(R/2)).to(input.device)
         output=torch.cat([row_pad, output,row_pad], dim=3)
-        col_pad=torch.zeros(N*SF,2,int(R/2),W).to(input.device)
+        col_pad=torch.zeros(N*SF,out_channels,int(R/2),W).to(input.device)
         output=torch.cat([col_pad, output,col_pad], dim=2)
-        output=output.view(N,SF,2,H,W)
+        output=output.view(N,SF,out_channels,H,W)
         return output
