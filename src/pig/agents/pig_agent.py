@@ -61,8 +61,8 @@ class PIG_agent(nn.Module):
                 human_data=sample['human']
                 robot_data=sample['robot']
                 # permute the data and move them to the device, enable the gradients
-                human_data=human_data.float().permute(0,1,4,2,3).to(device).requires_grad_(True)
-                robot_data=robot_data.float().permute(0,1,4,2,3).to(device).requires_grad_(True)
+                human_data=human_data.float().permute(0,1,4,2,3).to(device)#.requires_grad_(True)
+                robot_data=robot_data.float().permute(0,1,4,2,3).to(device)#.requires_grad_(True)
                 # get the output
                 coords1=self.model(human_data)
                 coords2=self.model(robot_data)
