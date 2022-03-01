@@ -13,3 +13,5 @@ dist/
 *.egg-info
 
 out.txt
+# animation gifs
+animation_*.gif

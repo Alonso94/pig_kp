@@ -47,10 +47,7 @@ class PatchInfoGainLoss(nn.Module):
     def forward(self, coords, images):
         N,SF,KP,_=coords.shape
         N,SF,C,H,W=images.shape
-        print(coords.shape)
-        # hist=self.histogram_layer(images)
-        # self.plot_histogram(images[0,0],hist[0,0])
-        # compute depth entropy
+        # print(coords.shape)
         depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
         # plot_entropy(images[0,0],depth_entropy[0,0].unsqueeze(0))
         # joint_entropy=self.joint_entropy_layer(images)
@@ -62,12 +59,12 @@ class PatchInfoGainLoss(nn.Module):
         aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
         # masked depth entropy
         masked_depth_entropy=depth_entropy*aggregated_mask
-        self.plot_masked_image(images[0,0],masked_depth_entropy[0,0])
+        # self.plot_masked_image(images[0,0],masked_depth_entropy[0,0])
         # the pig loss
         pig_loss = 1 - torch.sum(masked_depth_entropy)/torch.sum(depth_entropy)
         # log to wandb
         wandb.log({'pig_loss':pig_loss.item()})
-        print('pig_loss:',pig_loss.item())
+        # print('pig_loss:',pig_loss.item())
         torch.cuda.empty_cache()
         return pig_loss
 

@@ -16,7 +16,8 @@ class EntropyFunction(Function):
     def backward(ctx, d_entropy):
         inputs= ctx.saved_tensors
         d_input=entropy_layer.backward(inputs, d_entropy, ctx.bandwidth)
-        return d_input
+        # None for the gradient of the bandwidth
+        return d_input , None
 
 class Entropy(nn.Module):
     def __init__(self, region_size, bandwidth):

@@ -134,7 +134,7 @@ torch::Tensor histogram_cuda_forward(torch::Tensor x, float bandwidth){
 torch::Tensor histogram_cuda_backward(torch::Tensor x,
                             torch::Tensor d_histogram,
                             float bandwidth){
-    printf("histogram_cuda_forward\n");
+    // printf("histogram_cuda_forward\n");
     cudaError_t cudaStatus;
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -157,7 +157,7 @@ torch::Tensor histogram_cuda_backward(torch::Tensor x,
     // define the output tensor (the gradient)
     // N x H x W 
     auto grad_out = torch::zeros({N,H,W},x.options());
-    cudaEventRecord(start,0);
+    // cudaEventRecord(start,0);
     // call the kernel
     AT_DISPATCH_FLOATING_TYPES(x.type(),"histogram_cuda_backward",([&]{
         histogram_cuda_backward_kernel<float><<<grid,threads>>>(
@@ -168,25 +168,25 @@ torch::Tensor histogram_cuda_backward(torch::Tensor x,
     }));
     cudaDeviceSynchronize();
 
-    cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-    // Check for any errors launching the kernel
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+    // cudaEventRecord(stop, 0);
+	// cudaEventSynchronize(stop);
+    // // Check for any errors launching the kernel
+	// cudaStatus = cudaGetLastError();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+	// }
 
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-	}
+	// // cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// // any errors encountered during the launch.
+	// cudaStatus = cudaDeviceSynchronize();
+	// if (cudaStatus != cudaSuccess) {
+	// 	fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+	// }
 
-	float milliseconds = 0;
-	cudaEventElapsedTime(&milliseconds, start, stop);
+	// float milliseconds = 0;
+	// cudaEventElapsedTime(&milliseconds, start, stop);
 
-	std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
+	// std::cout << "GPU rendering required " << milliseconds/1000.0f << "s." << std::endl;
 
     // return the output
     return grad_out;

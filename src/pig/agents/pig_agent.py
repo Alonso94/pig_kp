@@ -2,6 +2,7 @@ from pig.data.dataset_from_data import DatasetFromData
 from pig.models.kpae import Encoder
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
 from pig.losses.pig import PatchInfoGainLoss
+from pig.losses.pcl import PatchContrastiveLoss
 
 import torch
 import torch.nn as nn
@@ -28,8 +29,10 @@ class PIG_agent(nn.Module):
         self.model=Encoder(config).to(device)
         # initialize the optimizer
         self.optimizer=torch.optim.Adam(self.model.parameters(),lr=config['learning_rate'])
-        # initialize the loss
+        # initialize the pig loss
         self.pig_loss=PatchInfoGainLoss(config)
+        # initliaze the pcl loss
+        self.pcl_loss=PatchContrastiveLoss(config)
         # initialize the wandb
         wandb.watch(self.model)
         # initialize the trajectory visualizer
@@ -67,7 +70,10 @@ class PIG_agent(nn.Module):
                 coords1=self.model(human_data)
                 coords2=self.model(robot_data)
                 # compute the loss
-                loss=self.pig_loss(coords1,human_data) + self.pig_loss(coords2,robot_data)
+                loss=self.pcl_loss(coords1,human_data)
+                loss+=self.pcl_loss(coords2,robot_data)
+                loss+=self.pig_loss(coords1,human_data) 
+                loss+= self.pig_loss(coords2,robot_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()

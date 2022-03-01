@@ -16,7 +16,8 @@ class JointEntropyFunction(Function):
     def backward(ctx, d_entropy):
         inputs= ctx.saved_variables
         d_input=joint_entropy_layer.backward(inputs, d_entropy, ctx.bandwidth)
-        return d_input
+        # None for the gradient of the bandwidth
+        return d_input , None
 
 class JointEntropy(nn.Module):
     def __init__(self, region_size, bandwidth):
