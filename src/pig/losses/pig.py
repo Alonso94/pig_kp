@@ -28,6 +28,7 @@ class PatchInfoGainLoss(nn.Module):
         self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
         self.histogram_layer=Histogram(config['bandwidth']).to(device)
         self.joint_entropy_layer=JointEntropy(config['region_size'],config['bandwidth']).to(device)
+        self.pig_loss_weight=config['pig_loss_weight']
 
         # extract patches
         self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation'], aggregate=True)
@@ -62,6 +63,7 @@ class PatchInfoGainLoss(nn.Module):
         # self.plot_masked_image(images[0,0],masked_depth_entropy[0,0])
         # the pig loss
         pig_loss = 1 - torch.sum(masked_depth_entropy)/torch.sum(depth_entropy)
+        pig_loss = self.pig_loss_weight*pig_loss
         # log to wandb
         wandb.log({'pig_loss':pig_loss.item()})
         # print('pig_loss:',pig_loss.item())
