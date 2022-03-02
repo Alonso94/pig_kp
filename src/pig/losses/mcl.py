@@ -61,7 +61,7 @@ class MatrixContrastiveLoss(nn.Module):
         # normalize the non-matches distance by the size of the non-matches arrays - the size of the matches arrays
         normalized_non_matches_dist=non_matches_dist/(NM*M*(NM*M-M))
         # compute the contrastive loss
-        contrastive_loss=torch.clamp(normalized_non_matches_dist-normalized_matches_dist+self.margin,min=0)
+        contrastive_loss=torch.clamp(normalized_matches_dist-normalized_non_matches_dist+self.margin,min=0)
         # compute the matches loss (mean of the normalized matches distance)
         matches_loss=normalized_matches_dist.mean()
         # compute the non-matches loss (mean of the normalized non-matches distance)
@@ -71,10 +71,9 @@ class MatrixContrastiveLoss(nn.Module):
         # log the losses (with prefix)
         wandb.log({f'{self.prefix}/Contrastive Loss':contrastive_loss.item(),\
                     f'{self.prefix}/Matches Loss':matches_loss.item(),\
-                    f'{self.prefix}/Non-Matches Loss':non_matches_loss.item(), \
-                    f'{self.prefix}_step':self.count})
+                    f'{self.prefix}/Non-Matches Loss':non_matches_loss.item()})
         # log the matches and non-matches distance matrices
-        if self.count%1000==0:
+        if self.count%100==0:
             self.visualize_matrices.log_matrices(matches_dist_matrix,non_matches_dist_matrix)
         self.count+=1
         # the loss to minimize is the contrastive loss and the matches loss

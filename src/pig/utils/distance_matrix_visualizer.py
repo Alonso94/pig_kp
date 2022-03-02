@@ -18,8 +18,9 @@ class DistanceMatrixVisualizer():
         ax.set_title('Matches distance matrix' '\n''(same entity in different occurrences)')
         plt.subplots_adjust(bottom=0.1, right=0.8, top=0.85)
         plt.colorbar(im,fraction=0.05, pad=0.05)
+        plt.tight_layout()
         # log the figure with the prefix
-        wandb.log({f'{self.prefix}/Matches Distance Matrix':fig})
+        wandb.log({'Matches Distance Matrix':wandb.Image(fig)})
         # plt.show()
         plt.close(fig)
         fig, ax =plt.subplots()
@@ -27,8 +28,9 @@ class DistanceMatrixVisualizer():
         ax.set_title('Distance matrix' '\n''(Comparing all entities)')
         plt.subplots_adjust(bottom=0.1, right=0.8, top=0.85)
         plt.colorbar(im,fraction=0.05, pad=0.05)
+        plt.tight_layout()
         # log the figure with the prefix
-        wandb.log({f'{self.prefix}/Non-Matches Distance Matrix':fig})
+        wandb.log({'Non-Matches Distance Matrix':wandb.Image(fig)})
         # plt.show()
         plt.close(fig)
 

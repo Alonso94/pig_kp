@@ -50,6 +50,7 @@ class PatchContrastiveLoss(nn.Module):
         # extract patches
         N,SF,KP,_=coords.shape
         N,SF,C,H,W=images.shape
+        # coords.register_hook(lambda grad: print("coords",grad))
         # repeate the image for each keypoint
         # N x SF x KP x C x H x W
         images=images[:,:,:3].unsqueeze(2).repeat(1,1,KP,1,1,1)
@@ -83,6 +84,9 @@ class PatchContrastiveLoss(nn.Module):
         hist=hist.permute(0,2,1,3)
         # pass the histogram to the MCL loss
         loss=self.mcl_loss(hist)
+        # log the loss
+        wandb.log({'patch_contrastive_loss':loss.item()})
+        torch.cuda.empty_cache()
         return loss
 
 

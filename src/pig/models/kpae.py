@@ -91,7 +91,6 @@ class Encoder(nn.Module):
         # input channels = C, output channels = 2*KP
         # N * SF x 2*KP x H/2 x W/2
         x=self.fm_conv_1(x)
-        # x.register_hook(lambda grad: print(grad.mean()))
         x=F.leaky_relu(x)
         x=self.bn1(x)
         # x.register_hook(lambda grad: print(grad.mean()))

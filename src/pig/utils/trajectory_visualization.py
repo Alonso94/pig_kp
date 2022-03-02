@@ -37,5 +37,5 @@ class TrajectoryVisualizer():
         animation.save('animation_{0}_{1}.gif'.format(label,self.counter), writer=writer)
         video=wandb.Video('animation_{0}_{1}.gif'.format(label,self.counter),format="gif")
         wandb.log({'kp_trajectories':video})
-        # os.remove('animation_{0}_{1}.gif'.format(label,self.counter))
+        os.remove('animation_{0}_{1}.gif'.format(label,self.counter))
         plt.close('all')
