@@ -71,9 +71,11 @@ class PatchContrastiveLoss(nn.Module):
         # plt.imshow(patches[0,:,:,:].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
         # plt.show()
         # get the histogram of the patches
-        # N*SF*KP x C x H x W
+        # N*SF*KP x C x 256
         # patches.register_hook(lambda grad: print("patches",grad.shape))
         hist=self.histogram_layer(patches)
+        # get rid of the black pixels
+        hist[:,:,0]=0
         # print(hist.shape)
         # plot_histogram(patches[0],hist[0])
         # reshape the histogram

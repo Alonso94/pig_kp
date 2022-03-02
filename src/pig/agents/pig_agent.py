@@ -73,9 +73,9 @@ class PIG_agent(nn.Module):
                 coords1=self.model(human_data)
                 # compute the loss
                 loss=0
-                loss+=self.scl_loss(coords1.clone())
+                # loss+=self.scl_loss(coords1.clone())
                 loss+=self.pcl_loss(coords1.clone(),human_data)
-                loss+=self.pig_loss(coords1.clone(),human_data)
+                # loss+=self.pig_loss(coords1.clone(),human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -87,9 +87,9 @@ class PIG_agent(nn.Module):
                 robot_data=robot_data.float().permute(0,1,4,2,3).to(device)#.requires_grad_(True)
                 coords2=self.model(robot_data)
                 loss=0
-                loss=self.scl_loss(coords2.clone())
+                # loss=self.scl_loss(coords2.clone())
                 loss+=self.pcl_loss(coords2.clone(),robot_data)
-                loss+= self.pig_loss(coords2.clone(),robot_data)
+                # loss+= self.pig_loss(coords2.clone(),robot_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()

@@ -32,8 +32,8 @@ class MatrixContrastiveLoss(nn.Module):
         # compute the matches distance matrix
         # d( (N x NM x 1 x M x E) , (N x NM x M  x 1 x E)) = (N x NM x M x M)
         # Wasserstein computation
-        a=torch.cumsum(x,dim=-1)
-        matches_dist_matrix=torch.sum(torch.abs(a[:,:,None,:,:]-a[:,:,:,None,:]),dim=-1)/(E*E)
+        a=torch.cumsum(x,dim=-1)/(E)
+        matches_dist_matrix=torch.sum(torch.abs(a[:,:,None,:,:]-a[:,:,:,None,:]),dim=-1)
         # soft distance matrix
         # matches_dist_matrix=torch.exp(-matches_dist_matrix/(2*self.sigma**2))
         # sum for each batch
@@ -46,8 +46,8 @@ class MatrixContrastiveLoss(nn.Module):
         # compute the non-matches distance matrix
         # d( (N x 1 x NM*M x E) , (N x NM*M x 1 x E)) = (N x NM*M x NM*M)
         # Wasserstein computation
-        a=torch.cumsum(x,dim=-1)
-        non_matches_dist_matrix=torch.sum(torch.abs(a[:,None,:,:]-a[:,:,None,:]),dim=-1)/(E*E)
+        a=torch.cumsum(x,dim=-1)/(E)
+        non_matches_dist_matrix=torch.sum(torch.abs(a[:,None,:,:]-a[:,:,None,:]),dim=-1)
         # soft distance matrix
         # non_matches_dist_matrix=torch.exp(-non_matches_dist_matrix/(2*self.sigma**2))
         # sum for each batch

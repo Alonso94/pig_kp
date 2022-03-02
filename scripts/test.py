@@ -26,7 +26,7 @@ wandb.config={
     'pig_loss_weight':10,
     # parameters for the pcl loss
     'num_samples':8,
-    'margin_for_matrix_contrastive_loss':0.3,
+    'margin_for_matrix_contrastive_loss':2,
     'contrastive_loss_weight':10,
     'matches_loss_weight':0.0,
     'non_matches_loss_weight':3,
