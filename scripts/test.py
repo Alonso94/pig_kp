@@ -21,18 +21,18 @@ wandb.config={
     # parameters for the pig loss
     'region_size':3,
     'bandwidth':0.001,
-    'std_for_featuremap_generation':3,
-    'threshold_for_featuremaps':0.0001,
-    'pig_loss_weight':10,
+    'std_for_featuremap_generation':9,
+    # 'threshold_for_featuremaps':0.0001,
+    'pig_loss_weight':1.0,
     # parameters for the pcl loss
     'num_samples':8,
     'margin_for_matrix_contrastive_loss':2,
-    'contrastive_loss_weight':10,
+    'contrastive_loss_weight':1.0,
     'matches_loss_weight':0.0,
     'non_matches_loss_weight':3,
     # 'sigma_for_mcl_soft':0.1,
     # parameters for spatial consistency loss
-    'spatial_consistency_loss_weight':0.0,
+    'spatial_consistency_loss_weight':1.0,
 }
 
 wandb.init(project="pig-test", name="pig-test", entity="3liyounes94", config=wandb.config,

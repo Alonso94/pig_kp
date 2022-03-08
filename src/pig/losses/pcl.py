@@ -67,7 +67,7 @@ class PatchContrastiveLoss(nn.Module):
         # plt.show()
         # apply sobel filter to get the edges
         # N*SF*KP x C x H x W
-        patches=sobel(patches)
+        # patches=sobel(patches)
         # plt.imshow(patches[0,:,:,:].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
         # plt.show()
         # get the histogram of the patches

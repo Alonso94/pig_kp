@@ -53,9 +53,9 @@ class PIG_agent(nn.Module):
             human_data=torch.tensor(sample['human']).float().permute(0,3,1,2).to(device).unsqueeze(0)
             coords=self.model(human_data)
             self.visualizer.log_video(sample['human'][...,:3],coords,'human')
-            robot_data=torch.tensor(sample['robot']).float().permute(0,3,1,2).to(device).unsqueeze(0)
-            coords=self.model(robot_data)
-            self.visualizer.log_video(sample['robot'][...,:3],coords,'robot')
+            # robot_data=torch.tensor(sample['robot']).float().permute(0,3,1,2).to(device).unsqueeze(0)
+            # coords=self.model(robot_data)
+            # self.visualizer.log_video(sample['robot'][...,:3],coords,'robot')
         # unfreeze the encoder
         self.model.train()
 
@@ -68,35 +68,37 @@ class PIG_agent(nn.Module):
                 robot_data=sample['robot']
                 # Training the model using human data
                 # permute the data and move them to the device, enable the gradients
-                human_data=human_data.float().permute(0,1,4,2,3).to(device)#.requires_grad_(True)
+                human_data=human_data.float().permute(0,1,4,2,3).to(device)
                 # get the output
                 coords1=self.model(human_data)
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                loss+=self.pcl_loss(coords1.clone(),human_data)
-                # loss+=self.pig_loss(coords1.clone(),human_data)
+                # loss+=self.pcl_loss(coords1.clone(),human_data)
+                loss+=self.pig_loss(coords1.clone(),human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
+                # input()
                 # update the parameters
                 self.optimizer.step()
                 # log the loss
                 wandb.log({'loss':loss.item()})
-                # Training the model using robot data
-                robot_data=robot_data.float().permute(0,1,4,2,3).to(device)#.requires_grad_(True)
-                coords2=self.model(robot_data)
-                loss=0
-                # loss=self.scl_loss(coords2.clone())
-                loss+=self.pcl_loss(coords2.clone(),robot_data)
+                # # Training the model using robot data
+                # robot_data=robot_data.float().permute(0,1,4,2,3).to(device)
+                # coords2=self.model(robot_data)
+                # loss=0
+                # # loss+=self.scl_loss(coords2.clone())
+                # # loss+=self.pcl_loss(coords2.clone(),robot_data)
                 # loss+= self.pig_loss(coords2.clone(),robot_data)
-                # compute the gradients
-                self.optimizer.zero_grad()
-                loss.backward()
-                # update the parameters
-                self.optimizer.step()
-                # log the loss
-                wandb.log({'loss':loss.item()})
+                # # compute the gradients
+                # self.optimizer.zero_grad()
+                # loss.backward()
+                # # input()
+                # # update the parameters
+                # self.optimizer.step()
+                # # log the loss
+                # wandb.log({'loss':loss.item()})
             # log the trajectory
             if self.log_video:
                 self.log_trajectory()

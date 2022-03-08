@@ -17,6 +17,7 @@ class SpatialConsistencyLoss(nn.Module):
         super(SpatialConsistencyLoss, self).__init__()
         self.width = config['width']
         self.height = config['height']
+        self.weight = config['spatial_consistency_loss_weight']
     
     def forward(self, coords):
         N,SF,KP,_ = coords.shape
@@ -44,10 +45,20 @@ class SpatialConsistencyLoss(nn.Module):
         # N x SF x KP x 2
         total_energy = kinetic_energy + potential_energy
         # the difference between the total energy at each time step should be zero, sum for the coordinates
-        # N x SF x KP
+        # N x SF x KP x KP
         total_energy_diff = abs(total_energy[:,:,:,None]-total_energy[:,:,None,:]).sum(dim=-1)
-        # The loss is the mean of the total energy difference
-        loss=total_energy_diff.mean()
+        # mean for each keypoint
+        # N x SF x KP
+        total_energy_diff = total_energy_diff.mean(dim=-1)
+        # mean over the frames
+        # N x KP
+        loss = total_energy_diff.mean(dim=1)
+        # mean over the keypoints
+        # N
+        loss = loss.mean(dim=-1)
+        # mean over batch
+        # 1
+        loss = self.weight*loss.mean()
         # log the loss to wandb
         wandb.log({'Spatial Consistency Loss': loss.item()})
         torch.cuda.empty_cache()

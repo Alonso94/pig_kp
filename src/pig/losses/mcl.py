@@ -57,9 +57,9 @@ class MatrixContrastiveLoss(nn.Module):
         # (N)
         non_matches_dist=non_matches_dist-matches_dist
         # normalize the matches distance by the size of the matches arrays
-        normalized_matches_dist=matches_dist/(NM*M*M)
+        normalized_matches_dist=matches_dist/(10*NM*M*M)
         # normalize the non-matches distance by the size of the non-matches arrays - the size of the matches arrays
-        normalized_non_matches_dist=non_matches_dist/(NM*M*(NM*M-M))
+        normalized_non_matches_dist=non_matches_dist/(10*NM*M*(NM*M-M))
         # compute the contrastive loss
         contrastive_loss=torch.clamp(normalized_matches_dist-normalized_non_matches_dist+self.margin,min=0)
         # compute the matches loss (mean of the normalized matches distance)

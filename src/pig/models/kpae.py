@@ -23,6 +23,7 @@ class Encoder(nn.Module):
         self.width=config["width"]
         self.height=config["height"]
         self.channels=config["channels"]
+        self.batch_norm=config["batch_norm"]
         self.fm_conv_1=nn.Conv2d(self.channels,self.numn_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_1.weight)
         self.bn1=nn.BatchNorm2d(self.numn_feature_maps*2)
@@ -92,45 +93,56 @@ class Encoder(nn.Module):
         # N * SF x 2*KP x H/2 x W/2
         x=self.fm_conv_1(x)
         x=F.leaky_relu(x)
-        x=self.bn1(x)
-        # x.register_hook(lambda grad: print(grad.mean()))
+        if self.batch_norm:
+            x=self.bn1(x)
+        # x.register_hook(lambda grad: print("layer 1 out",grad.mean()))
+        # grad mean = 1.08e-14
         # second convolution with leaky relu and batch norm
         # input channels = 2*KP, output channels = KP
         # N * SF x KP x H/4 x W/4
         x=self.fm_conv_2(x)
         x=F.leaky_relu(x)
-        x=self.bn2(x)
-        # x.register_hook(lambda grad: print(grad.mean()))
+        if self.batch_norm:
+            x=self.bn2(x)
+        # x.register_hook(lambda grad: print("layer 2 out",grad.mean()))
+        # grad mean = -2.88e-13
         # first deconvolution with leaky relu and batch norm
         # input channels = KP, output channels = 2*KP
         # N * SF x 2*KP x H/2 x W/2
         x=self.fm_conv_3(x)
         x=F.leaky_relu(x)
-        x=self.bn3(x)
-        # x.register_hook(lambda grad: print(grad.mean()))
+        if self.batch_norm:
+            x=self.bn3(x)
+        # x.register_hook(lambda grad: print("layer 3 out",grad.mean()))
+        # grad mean = 6e-15
         # second deconvolution with leaky relu and batch norm
         # input channels = 2*KP, output channels = KP
         # N * SF x KP x H x W
         x=self.fm_conv_4(x)
-        # x.register_hook(lambda grad: print(grad.mean()))
+        x=F.relu(x)
+        if self.batch_norm:
+            x=self.bn4(x)
+        # x.register_hook(lambda grad: print("layer 4 out",grad.mean()))
+        # grad mean =  2.4e-22
         # x=F.leaky_relu(x)
         # x=self.bn4(x)
-        # use softplus to constrain the output to be positive
-        x=F.softplus(x)
+        # # use softplus to constrain the output to be positive
+        # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
         # apply gaussian blur to the output
         # x=gaussian_blur2d(x,kernel_size=(3,3),sigma=(1.5,1.5))
         # compute the coordinates of the keypoints
         coords=self.spatial_soft_argmax(x)
+        # coords.register_hook(lambda grad: print("coords out encoder",grad.mean()))
+        # grad mean = 2.3e-11
         # N * SF x KP
         # coord=spatial_soft_argmax2d(x,normalized_coordinates=True)
         # reshape the coordinates
         # N x SF x KP x 2
         coords=coords.view(N,SF,-1,2)
-        if self.count%1000==0:
+        if self.count%100==0:
             self.log_feature_maps(x)
         self.count+=1
-        # coord.register_hook(lambda grad: (grad * 1000).float())
         return coords
 
     def log_feature_maps(self,x):
