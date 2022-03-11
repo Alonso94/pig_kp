@@ -1,5 +1,6 @@
-from pig.data.dataset_from_data import DatasetFromData
+from pig.data.dataset_from_MIME import DatasetFromMIME
 from pig.models.kpae import Encoder
+from pig.utils.extract_patches import PatchExtractor
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
 from pig.losses.pig import PatchInfoGainLoss
 from pig.losses.pcl import PatchContrastiveLoss
@@ -23,7 +24,8 @@ class PIG_agent(nn.Module):
     def __init__(self,config):
         super().__init__()
         # load the dataset
-        self.dataset=DatasetFromData(config)
+        self.dataset=DatasetFromMIME(config)
+        # self.dataset.show_sample(530)
         # initialize the dataloaer
         self.dataloader=DataLoader(self.dataset,batch_size=config['batch_size'],shuffle=True)
         # initialize the model
@@ -36,13 +38,18 @@ class PIG_agent(nn.Module):
         self.pcl_loss=PatchContrastiveLoss(config)
         # initialize the spatial consistency loss
         self.scl_loss=SpatialConsistencyLoss(config)
+        # initialize the patch extractor
+        self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation']).to(device)
         # initialize the wandb
         wandb.watch(self.model,log_freq=100)
         # initialize the trajectory visualizer
         self.visualizer=TrajectoryVisualizer()
         self.log_video=config['log_video']
+        self.log_video_every=config['log_video_every']
         self.save=config['save_model']
         self.epochs=config['epochs']
+        # self.log_trajectory()
+        # input()
 
     def log_trajectory(self):
         # get the data
@@ -71,11 +78,13 @@ class PIG_agent(nn.Module):
                 human_data=human_data.float().permute(0,1,4,2,3).to(device)
                 # get the output
                 coords1=self.model(human_data)
+                # generate feature maps around keypoints
+                feature_maps=self.patch_extractor(coords1,human_data.shape[-2:])
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                # loss+=self.pcl_loss(coords1.clone(),human_data)
-                loss+=self.pig_loss(coords1.clone(),human_data)
+                # loss+=self.pcl_loss(feature_maps,human_data)
+                loss+=self.pig_loss(feature_maps,human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -87,10 +96,12 @@ class PIG_agent(nn.Module):
                 # # Training the model using robot data
                 # robot_data=robot_data.float().permute(0,1,4,2,3).to(device)
                 # coords2=self.model(robot_data)
+                # # generate feature maps around keypoints
+                # feature_maps=self.patch_extractor(coords2,robot_data.shape[-2:])
                 # loss=0
                 # # loss+=self.scl_loss(coords2.clone())
-                # # loss+=self.pcl_loss(coords2.clone(),robot_data)
-                # loss+= self.pig_loss(coords2.clone(),robot_data)
+                # # loss+=self.pcl_loss(feature_maps,robot_data)
+                # loss+= self.pig_loss(feature_maps,robot_data)
                 # # compute the gradients
                 # self.optimizer.zero_grad()
                 # loss.backward()
@@ -100,7 +111,7 @@ class PIG_agent(nn.Module):
                 # # log the loss
                 # wandb.log({'loss':loss.item()})
             # log the trajectory
-            if self.log_video:
+            if self.log_video and epoch%self.log_video_every==0:
                 self.log_trajectory()
             # save the model
             if self.save:

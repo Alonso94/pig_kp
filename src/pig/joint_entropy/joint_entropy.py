@@ -45,7 +45,6 @@ class JointEntropy(nn.Module):
         # move channels to the last dimension
         patches=patches.permute(0,1,3,4,2)
         output=JointEntropyFunction.apply(patches, self.bandwidth)
-        print(output.shape)
         # reshape the output to N x SF x (H-R+1) x (W-R+1)
         output=output.view(N,SF,2,H-R+1,W-R+1)
         # add zero padding to the output to match the size of the input

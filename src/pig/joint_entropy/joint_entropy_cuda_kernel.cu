@@ -67,6 +67,8 @@ namespace{
             prob += (kernel(input[n][n1][p][i][1]-t,L,B)*(kernel(input[n][n2][p][i][1]-t,L,B)))/patch_size;
             prob += (kernel(input[n][n1][p][i][2]-t,L,B)*(kernel(input[n][n2][p][i][2]-t,L,B)))/patch_size;
             depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)*(kernel(input[n][n2][p][i][3]-t,L,B)))/patch_size;
+            depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)*(kernel(input[n][n2][p][i][4]-t,L,B)))/patch_size;
+            depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)*(kernel(input[n][n2][p][i][5]-t,L,B)))/patch_size;
         }
         // update the output
         atomicAdd(&joint_entropy_out[n][n2][0][p],entropy(prob));
@@ -100,6 +102,8 @@ namespace{
             prob += (kernel(input[n][n1][p][i][1]-t,L,B)/patch_size)*(kernel(input[n][n2][p][i][1]-t,L,B)/patch_size);
             prob += (kernel(input[n][n1][p][i][2]-t,L,B)/patch_size)*(kernel(input[n][n2][p][i][2]-t,L,B)/patch_size);
             depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)/patch_size)*(kernel(input[n][n2][p][i][3]-t,L,B)/patch_size);
+            depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)*(kernel(input[n][n2][p][i][4]-t,L,B)))/patch_size;
+            depth_prob += (kernel(input[n][n1][p][i][3]-t,L,B)*(kernel(input[n][n2][p][i][5]-t,L,B)))/patch_size;
         }
         // the derivative of the entropy function
         float d_prob1 = d_joint_entropy[n][n1][0][p] * d_entropy(prob);
@@ -119,8 +123,12 @@ namespace{
             d_prob_n2 += d_kernel(input[n][n2][p][i][2]-t,L,B)/patch_size * (kernel(input[n][n1][p][i][2]-t,L,B)/patch_size);
             grad_out[n][n2][0][p][i] += d_prob2 * d_prob_n2;
             d_depth_prob_n1 += d_kernel(input[n][n1][p][i][3]-t,L,B)/patch_size * (kernel(input[n][n2][p][i][3]-t,L,B)/patch_size);
+            d_depth_prob_n1 += d_kernel(input[n][n1][p][i][4]-t,L,B)/patch_size * (kernel(input[n][n2][p][i][4]-t,L,B)/patch_size);
+            d_depth_prob_n1 += d_kernel(input[n][n1][p][i][5]-t,L,B)/patch_size * (kernel(input[n][n2][p][i][5]-t,L,B)/patch_size);
             grad_out[n][n1][1][p][i] += d_depth_prob1 * d_depth_prob_n1;
             d_depth_prob_n2 += d_kernel(input[n][n2][p][i][3]-t,L,B)/patch_size * (kernel(input[n][n1][p][i][3]-t,L,B)/patch_size);
+            d_depth_prob_n2 += d_kernel(input[n][n2][p][i][4]-t,L,B)/patch_size * (kernel(input[n][n1][p][i][4]-t,L,B)/patch_size);
+            d_depth_prob_n2 += d_kernel(input[n][n2][p][i][5]-t,L,B)/patch_size * (kernel(input[n][n1][p][i][5]-t,L,B)/patch_size);
             grad_out[n][n2][1][p][i] += d_depth_prob2 * d_depth_prob_n2;
         }
     }

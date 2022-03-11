@@ -6,11 +6,13 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 import cv2
 
+import matplotlib.pyplot as plt
+
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-class DatasetFromData(Dataset):
+class DatasetFromMIME(Dataset):
     def __init__(self,config, demonstrator='human'):
-        super(DatasetFromData,self).__init__()
+        super(DatasetFromMIME,self).__init__()
         self.demonstrator=demonstrator.lower()
 
         self.width = config['width']
@@ -19,10 +21,14 @@ class DatasetFromData(Dataset):
         self.number_of_demos=config['number_of_demos']
         self.number_of_stacked_frames=config['number_of_stacked_frames']
 
+        self.with_depth=config['with_depth']
+
         self.tasks=config['tasks'].split(',')
 
+        self.visualize_preprocessing=False
+
         # load the dataset if it's already been created
-        data_path='datasets/dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames.pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames)
+        data_path='datasets/MIME_dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames_depth({5}).pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames, self.with_depth)
         if os.path.exists(data_path):
             print('Loading dataset from',data_path)
             d = torch.load(data_path)
@@ -65,7 +71,7 @@ class DatasetFromData(Dataset):
         frames=np.concatenate((human_frames,robot_frames),axis=1)
         # use RGB to show the frames
         frames=frames[:,:,:3].astype(np.uint8)
-        frames=cv2.cvtColor(frames, cv2.COLOR_RGB2BGR)
+        # frames=cv2.cvtColor(frames, cv2.COLOR_RGB2BGR)
         # show the frames
         cv2.imshow('sample',frames)
         cv2.waitKey(0)
@@ -88,6 +94,33 @@ class DatasetFromData(Dataset):
         sample={'human':human_sample,'robot':robot_sample}
         return sample
 
+    def preprocess(self,frame,i):
+        # apply bilateral filter to the frame
+        bilateral=cv2.bilateralFilter(frame,9,150,150)
+        # blur the frame
+        smooth=cv2.blur(bilateral,(150,150))
+        # divide the frame by the blurred frame
+        division=cv2.divide(frame,smooth,scale=255)
+        # sharpen the frame
+        frame=cv2.addWeighted(division,2.0,cv2.GaussianBlur(frame,(0,0),5),-0.5,0)
+        if i==0 and self.visualize_preprocessing:
+            fig,axes=plt.subplots(2,2, constrained_layout=True)
+            axes[0,0].imshow(bilateral)
+            axes[0,0].set_title('bilateral filter')
+            axes[0,1].imshow(smooth)
+            axes[0,1].set_title('blur')
+            axes[1,0].imshow(division)
+            axes[1,0].set_title('divide')
+            axes[1,1].imshow(frame)
+            axes[1,1].set_title('sharpen')
+            # remove the ticks
+            for ax in axes.flat:
+                ax.set(xticks=[],yticks=[])
+            plt.show()
+            # kill all the figures
+            plt.close('all')
+        return frame
+
     def read_frames_from_video(self,video_path, depth=False):
         # read the video
         video=cv2.VideoCapture(video_path)
@@ -98,15 +131,13 @@ class DatasetFromData(Dataset):
         for i in range(n_frames):
             # read the frame
             ret, frame = video.read()
+            # center crop the frame from 640x240 to 320x240
+            frame=frame[:,120:480,:]
             if self.width!=None and self.height!=None:
                 # resize the frame
                 frame=cv2.resize(frame,(self.width,self.height))
-            if depth:
-                # convert to gray scale
-                frame=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                # edd a dimension for the channel
-                frame=frame[:,:,np.newaxis]
-            # add the frame to the list
+            # preprocess the frame
+            frame=self.preprocess(frame,i)
             frames.append(frame)
         # close the video
         video.release()
@@ -128,22 +159,35 @@ class DatasetFromData(Dataset):
                 human_videos=sorted([video for video in videos if video.startswith('hd')])
                 robot_videos=sorted([video for video in videos if video.startswith('rd')])
                 # read the frames
-                human_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[0]),depth=True)
+                if self.with_depth:
+                    human_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[0]),depth=True)
                 human_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[1]))
-                robot_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[0]),depth=True)
+                if self.with_depth:
+                    robot_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[0]),depth=True)
                 robot_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[1]))
                 # unify the length of the frames
-                n_frames=min(human_depth_frames.shape[0],human_rgb_frames.shape[0],robot_depth_frames.shape[0],robot_rgb_frames.shape[0])
+                if self.with_depth:
+                    n_frames=min(human_depth_frames.shape[0],human_rgb_frames.shape[0],robot_depth_frames.shape[0],robot_rgb_frames.shape[0])
+                else:
+                    n_frames=min(human_rgb_frames.shape[0],robot_rgb_frames.shape[0])
                 # add the task start index to the list
                 self.task_start_idx.append(self.task_start_idx[-1]+n_frames)
                 # cut the frames to the same length
-                human_depth_frames=human_depth_frames[:n_frames]
+                if self.with_depth:
+                    human_depth_frames=human_depth_frames[:n_frames]
                 human_rgb_frames=human_rgb_frames[:n_frames]
-                robot_depth_frames=robot_depth_frames[:n_frames]
+                if self.with_depth:
+                    robot_depth_frames=robot_depth_frames[:n_frames]
                 robot_rgb_frames=robot_rgb_frames[:n_frames]
                 # concatenate the egb and depth frames
-                human_frames=np.concatenate((human_rgb_frames,human_depth_frames),axis=3)
-                robot_frames=np.concatenate((robot_rgb_frames,robot_depth_frames),axis=3)
+                if self.with_depth:
+                    human_frames=np.concatenate((human_rgb_frames,human_depth_frames),axis=3)
+                else:
+                    human_frames=human_rgb_frames
+                if self.with_depth:
+                    robot_frames=np.concatenate((robot_rgb_frames,robot_depth_frames),axis=3)
+                else:
+                    robot_frames=robot_rgb_frames
                 # append the frames to the list
                 self.human_data.append(human_frames)
                 self.robot_data.append(robot_frames)

@@ -38,25 +38,42 @@ class PatchContrastiveLoss(nn.Module):
         # number of keypoints
         self.num_keypoints=config['num_keypoints']
 
-    def forward(self, coords, images):
+    def threshold(self, fm):
+        fm-=0.001
+        fm=F.sigmoid(10000*fm)
+        # visualize the thresholded gaussian
+        # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
+        # plt.show()
+        return fm
+
+    def forward(self, feature_maps, images):
         if self.num_samples is not None:
             # draw samples
             samples=torch.randint(0,self.num_keypoints,(self.num_samples,),device=device)
             # get the samples
-            coords=coords[:,:,samples,:]
-        # get rid of the depth channel
-        images=images[:,:,:3] 
-        # coords.register_hook(lambda grad: print("coords",grad))
+            feature_maps=feature_maps[:,:,samples,:,:]
+        # # get rid of the depth channel
+        # images=images[:,:,:3]
+        # feature_maps.register_hook(lambda grad: print("coords_pcl",grad.mean()))
         # extract patches
-        N,SF,KP,_=coords.shape
+        N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
-        # coords.register_hook(lambda grad: print("coords",grad))
+        # reshape the images
+        images=images.view(N*SF,C,H,W)
+        # apply sobel filter
+        images=sobel(images)
+        # reshape the images back
+        images=images.view(N,SF,C,H,W)
         # repeate the image for each keypoint
         # N x SF x KP x C x H x W
-        images=images[:,:,:3].unsqueeze(2).repeat(1,1,KP,1,1,1)
+        images=images.unsqueeze(2).repeat(1,1,KP,1,1,1)
         # generate the mask
         # N x SF x KP x 1 x H x W
-        mask=self.patch_extractor(coords, size=(H, W)).unsqueeze(3).to(device)
+        mask=self.threshold(feature_maps).unsqueeze(3)
+        # mask.register_hook(lambda grad: print("mask",grad.mean()))
+        # the sum of the masks for normalization
+        # N x SF x KP
+        mask_sum=mask.sum(dim=(-1,-2)).mean()
         # get the patches
         # N x SF x KP x C x H x W
         patches=images*mask
@@ -72,8 +89,11 @@ class PatchContrastiveLoss(nn.Module):
         # plt.show()
         # get the histogram of the patches
         # N*SF*KP x C x 256
-        # patches.register_hook(lambda grad: print("patches",grad.shape))
+        # patches.register_hook(lambda grad: print("patches",grad.mean()))
         hist=self.histogram_layer(patches)
+        # normalize the histogram
+        # N*SF*KP x C x 256
+        hist=hist/mask_sum
         # get rid of the black pixels
         hist[:,:,0]=0
         # print(hist.shape)

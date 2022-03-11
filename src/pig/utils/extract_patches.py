@@ -20,6 +20,7 @@ class PatchExtractor(nn.Module):
         # aggregate the featuremaps
         self.aggregate=aggregate
         self.mask=mask
+        self.sigmoid=nn.Sigmoid()
     
     def forward(self, coords, size):
         # coords.register_hook(lambda grad: print("coords extract patches",grad.mean()))
@@ -61,20 +62,20 @@ class PatchExtractor(nn.Module):
         # N x KP x H x W
         fm=fm.view(N,SF,KP,H,W)
         # fm.register_hook(lambda grad: print("fm sum:",grad.mean()))
-        # grad mean = -2.5e-7
-        if self.aggregate:
-            # N x SF x H x W
-            fm=torch.sum(fm,dim=2)
-            # fm=fm[:,:,0,...]
-            # fm.register_hook(lambda grad: print("fm threshold:",grad.mean()))
-            # grad mean = -2.5e-7
+        # # grad mean = -2.5e-7
+        # if self.aggregate:
+        #     # N x SF x H x W
+        #     fm=torch.sum(fm,dim=2)
+        #     # fm=fm[:,:,0,...]
+        #     fm.register_hook(lambda grad: print("fm threshold:",grad.mean()))
+        #     # grad mean = -2.5e-7
         # threshold the fm
         # fm=self.threshold(-fm)
-        fm-=0.001
-        fm=F.sigmoid(10000*fm)
+        # fm-=0.001
+        # fm=self.sigmoid(10000*fm)
         # fm.register_hook(lambda grad: print("fm out:",grad.mean()))
-        # grad mean = 2.7e-7
-        # visualize the thresholded gaussian
-        # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
-        # plt.show()
+        # # grad mean = 2.7e-7
+        # # visualize the thresholded gaussian
+        # # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
+        # # plt.show()
         return fm

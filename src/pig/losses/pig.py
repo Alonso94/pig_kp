@@ -1,5 +1,6 @@
 from pig.entropy_layer.entropy import Entropy
-
+from pig.joint_entropy.joint_entropy import JointEntropy
+from pig.utils.plot_entropy_histogram import *
 from pig.utils.extract_patches import PatchExtractor
 
 import numpy as np
@@ -10,6 +11,7 @@ matplotlib.rcParams['font.size']= 5
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import wandb
 
@@ -23,6 +25,7 @@ class PatchInfoGainLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
+        self.joint_entropy=JointEntropy(config['region_size'],config['bandwidth']).to(device)
         self.pig_loss_weight=config['pig_loss_weight']
         self.num_keypoints=config['num_keypoints']
         # extract patches
@@ -44,26 +47,47 @@ class PatchInfoGainLoss(nn.Module):
         # log the image to wandb
         wandb.log({'masked_image':wandb.Image(fig)})
 
-    def forward(self, coords, images):
-        N,SF,KP,_=coords.shape
+    def threshold(self, fm):
+        fm-=0.001
+        fm=F.sigmoid(10000*fm)
+        # visualize the thresholded gaussian
+        # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
+        # plt.show()
+        return fm
+
+    def forward(self, feature_maps, images):
+        N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
-        # coords.register_hook(lambda grad: print("coords_pig",grad.mean()))
+        # feature_maps.register_hook(lambda grad: print("coords_pig",grad.mean()))
         # grad mean = 2.3e-11
-        depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
+        # depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
+        rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
+        # plot_entropy(images[0,0],rgb_entropy[0])
+        # joint_entropy=self.joint_entropy(images)
+        # conditional_entropy=joint_entropy-depth_entropy
+        # plot_joint_entropy(images[0],joint_entropy[0,0],'Conditional')
         # sum the entropy of each image
-        depth_entropy_sum=depth_entropy.sum(dim=(-1,-2))
+        rgb_entropy_sum=rgb_entropy.sum(dim=(-1,-2))
         # generate the gaussians around keypoints
-        aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
+        # aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
+        aggregated_feature_maps=feature_maps.sum(dim=2)
+        aggregated_mask=self.threshold(aggregated_feature_maps)
         # print(aggregated_mask.shape)
         # grad mean =  2.7e-7
         # masked depth entropy
-        masked_depth_entropy=depth_entropy*aggregated_mask
+        masked_depth_entropy=rgb_entropy*aggregated_mask
+        # print("masked_depth_entropy",masked_depth_entropy.shape)
+        # normalize the masked depth entropy
+        # masked_depth_entropy=(min_depth_entropy-masked_depth_entropy)/(min_depth_entropy-max_depth_entropy)
         # we want to encourage maximizing the entropy in the masked regions
         # at the same time encourage our keypoints to spread out
         masked_entropy_sum=torch.sum(masked_depth_entropy,dim=(-1,-2))
+        # print("masked_entropy_sum",masked_entropy_sum[0,0])
         # masked_entropy_sum.register_hook(lambda grad: print("masked_entropy_sum",grad.mean()))
         # grad mean =  5.1e-7
-        masked_entropy_loss=1-masked_entropy_sum/depth_entropy_sum
+        masked_entropy_loss=1-masked_entropy_sum/rgb_entropy_sum
+        # masked_entropy_loss=(min_depth_entropy-masked_entropy_sum)/(min_depth_entropy-max_depth_entropy)
+        # print("masked_entropy_loss",masked_entropy_loss[0,0])
         # masked_entropy_loss.register_hook(lambda grad: print("masked_entropy_loss",grad.mean()))
         # grad mean =  0.0104
         # the pig loss
