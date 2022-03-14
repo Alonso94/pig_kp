@@ -19,23 +19,29 @@ class Encoder(nn.Module):
 # with two downsampling layers and two upsampling layers
     def __init__(self, config):
         super().__init__()
-        self.numn_feature_maps=config["num_keypoints"]
+        self.num_feature_maps=config["num_keypoints"]
         self.width=config["width"]
         self.height=config["height"]
         self.channels=config["channels"]
         self.batch_norm=config["batch_norm"]
-        self.fm_conv_1=nn.Conv2d(self.channels,self.numn_feature_maps*2,kernel_size=3,stride=2)
+        self.padding=config["padding"]
+        self.fm_conv_1=nn.Conv2d(self.channels,self.num_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_1.weight)
-        self.bn1=nn.BatchNorm2d(self.numn_feature_maps*2)
-        self.fm_conv_2=nn.Conv2d(self.numn_feature_maps*2,self.numn_feature_maps,kernel_size=3,stride=2)
+        self.bn1=nn.BatchNorm2d(self.num_feature_maps*2)
+        self.fm_conv_2=nn.Conv2d(self.num_feature_maps*2,self.num_feature_maps,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_2.weight)
-        self.bn2=nn.BatchNorm2d(self.numn_feature_maps)
-        self.fm_conv_3=nn.ConvTranspose2d(self.numn_feature_maps,self.numn_feature_maps*2,kernel_size=3,stride=2)
+        self.bn2=nn.BatchNorm2d(self.num_feature_maps)
+        self.fm_conv_3=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_3.weight)
-        self.bn3=nn.BatchNorm2d(self.numn_feature_maps*2)
-        self.fm_conv_4=nn.ConvTranspose2d(self.numn_feature_maps*2,self.numn_feature_maps,kernel_size=3,stride=2)
+        self.bn3=nn.BatchNorm2d(self.num_feature_maps*2)
+        self.fm_conv_4=nn.ConvTranspose2d(self.num_feature_maps*2,self.num_feature_maps,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_4.weight)
-        self.bn4=nn.BatchNorm2d(self.numn_feature_maps)
+        self.bn4=nn.BatchNorm2d(self.num_feature_maps)
+        # add another layer to get a feature map bigger than the original image
+        # the idea is to give keypoints an opportunity to go there and be inactive
+        self.fm_conv_5=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps,kernel_size=self.padding*2+2,stride=1)
+        torch.nn.init.normal_(self.fm_conv_5.weight)
+        self.bn5=nn.BatchNorm2d(self.num_feature_maps)
         mean=[0.485, 0.456, 0.406]+[0.4]*(self.channels-3)
         std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
         self.normalize = transforms.Normalize(mean,std)
@@ -69,7 +75,8 @@ class Encoder(nn.Module):
         expected_x=torch.sum(weights*x_grid,dim=-1,keepdim=True)
         expected_y=torch.sum(weights*y_grid,dim=-1,keepdim=True)
         # concatenate the expected coordinates to the feature maps
-        coords=torch.cat([expected_x,expected_y],dim=-1)
+        # subtract padding to get the coordinates in the original image
+        coords=torch.cat([expected_x-self.padding,expected_y-self.padding],dim=-1)
         # visualize the expected coordinates
         # fig,ax=plt.subplots()
         # ax.imshow(img, cmap='jet')
@@ -125,7 +132,11 @@ class Encoder(nn.Module):
         # x.register_hook(lambda grad: print("layer 4 out",grad.mean()))
         # grad mean =  2.4e-22
         # x=F.leaky_relu(x)
-        # x=self.bn4(x)
+        # N * SF x KP x H+padding x W+padding
+        x=self.fm_conv_5(x)
+        x=F.relu(x)
+        if self.batch_norm:
+            x=self.bn5(x)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))

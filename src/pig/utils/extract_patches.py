@@ -54,7 +54,8 @@ class PatchExtractor(nn.Module):
         # exp_term - N*KP x H x W
         exp_term=torch.exp(-1*(squared_distances)/(2*std**2))
         # gaussian - N*KP x H x W 
-        fm=exp_term/(2*std**2*torch.sqrt(2*pi))
+        # remove the normalization term to make penalizing the overlapping easier
+        fm=exp_term#/(2*std**2*torch.sqrt(2*pi))
         # # visualize the gaussian
         # plt.imshow(fm[0].detach().cpu().numpy(), cmap='gray')
         # plt.show()
@@ -76,6 +77,6 @@ class PatchExtractor(nn.Module):
         # fm.register_hook(lambda grad: print("fm out:",grad.mean()))
         # # grad mean = 2.7e-7
         # # visualize the thresholded gaussian
-        # # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
-        # # plt.show()
+        # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
+        # plt.show()
         return fm

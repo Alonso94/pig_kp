@@ -68,7 +68,7 @@ class PIG_agent(nn.Module):
 
     def train(self):
         # train the model
-        for epoch in range(self.epochs, desc="Training the model"):
+        for epoch in trange(self.epochs, desc="Training the model"):
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
                 human_data=sample['human']

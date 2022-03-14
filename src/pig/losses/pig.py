@@ -26,7 +26,8 @@ class PatchInfoGainLoss(nn.Module):
         super().__init__()
         self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
         self.joint_entropy=JointEntropy(config['region_size'],config['bandwidth']).to(device)
-        self.pig_loss_weight=config['pig_loss_weight']
+        self.masked_entropy_loss_weight=config['masked_entropy_loss_weight']
+        self.overlapping_loss_weight=config['overlapping_loss_weight']
         self.num_keypoints=config['num_keypoints']
         # extract patches
         self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation'], aggregate=True)
@@ -48,9 +49,9 @@ class PatchInfoGainLoss(nn.Module):
         wandb.log({'masked_image':wandb.Image(fig)})
 
     def threshold(self, fm):
-        fm-=0.001
+        fm-=0.5
         fm=F.sigmoid(10000*fm)
-        # visualize the thresholded gaussian
+        # # visualize the thresholded gaussian
         # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
         # plt.show()
         return fm
@@ -62,6 +63,8 @@ class PatchInfoGainLoss(nn.Module):
         # grad mean = 2.3e-11
         # depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
         rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
+        # penalize the background by subtract -0.1
+        rgb_entropy-=0.1
         # plot_entropy(images[0,0],rgb_entropy[0])
         # joint_entropy=self.joint_entropy(images)
         # conditional_entropy=joint_entropy-depth_entropy
@@ -86,12 +89,15 @@ class PatchInfoGainLoss(nn.Module):
         # masked_entropy_sum.register_hook(lambda grad: print("masked_entropy_sum",grad.mean()))
         # grad mean =  5.1e-7
         masked_entropy_loss=1-masked_entropy_sum/rgb_entropy_sum
+        # penalize the overlapping of the patches
+        # the maximum of the aggregated feature maps should as small as possible
+        overlapping_loss = aggregated_feature_maps.amax(dim=(-1,-2))
         # masked_entropy_loss=(min_depth_entropy-masked_entropy_sum)/(min_depth_entropy-max_depth_entropy)
         # print("masked_entropy_loss",masked_entropy_loss[0,0])
         # masked_entropy_loss.register_hook(lambda grad: print("masked_entropy_loss",grad.mean()))
         # grad mean =  0.0104
         # the pig loss
-        pig_loss = self.pig_loss_weight*(masked_entropy_loss)
+        pig_loss = self.masked_entropy_loss_weight*masked_entropy_loss + self.overlapping_loss_weight*overlapping_loss
         # mean over time
         pig_loss=pig_loss.mean(dim=-1)
         # mean over the batch
@@ -103,7 +109,8 @@ class PatchInfoGainLoss(nn.Module):
         self.count+=1
         # log to wandb
         wandb.log({'pig_loss':pig_loss.item(),
-                   'pig/masked_entropy_percentage':masked_entropy_loss.mean().item()})
+                   'pig/masked_entropy_percentage':masked_entropy_loss.mean().item(),
+                   'pig/overlapping_loss':overlapping_loss.mean().item()})
         torch.cuda.empty_cache()
         return pig_loss
 

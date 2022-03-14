@@ -16,6 +16,7 @@ wandb.config={
     'batch_size':16,
     'learning_rate':0.001,
     'num_keypoints':16,
+    'padding':20,
     'epochs':200,
     'log_video':True,
     'log_video_every':20,
@@ -26,7 +27,8 @@ wandb.config={
     'bandwidth':0.001,
     'std_for_featuremap_generation':9,
     # 'threshold_for_featuremaps':0.0001,
-    'pig_loss_weight':100.0,
+    'masked_entropy_loss_weight':100.0,
+    'overlapping_loss_weight':10.0,
     # parameters for the pcl loss
     'num_samples':8,
     'margin_for_matrix_contrastive_loss':0.5,
@@ -39,7 +41,7 @@ wandb.config={
 }
 
 wandb.init(project="pig-test", name="pig-test", entity="3liyounes94", config=wandb.config,
-              mode="disabled"
+              # mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)
