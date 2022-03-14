@@ -156,8 +156,8 @@ class Encoder(nn.Module):
             im=ax[i%s,i//s].imshow(x[0,i,:,:].detach().cpu().numpy(), cmap='jet')
         # add the title
         fig.suptitle("Feature maps")
-        # add colorbar to the figure
-        fig.colorbar(im, ax=ax[:,-1])
+        # # add colorbar to the figure
+        # fig.colorbar(im, ax=ax[:,-1])
         # log the figure to wandb
         wandb.log({"Feature Maps":wandb.Image(fig)})
         # close the figure

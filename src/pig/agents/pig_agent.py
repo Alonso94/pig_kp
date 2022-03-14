@@ -41,7 +41,7 @@ class PIG_agent(nn.Module):
         # initialize the patch extractor
         self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation']).to(device)
         # initialize the wandb
-        wandb.watch(self.model,log_freq=100)
+        wandb.watch(self.model,log_freq=1000)
         # initialize the trajectory visualizer
         self.visualizer=TrajectoryVisualizer()
         self.log_video=config['log_video']
@@ -53,7 +53,7 @@ class PIG_agent(nn.Module):
 
     def log_trajectory(self):
         # get the data
-        sample=self.dataset.sample_video_from_data(50)
+        sample=self.dataset.sample_video_from_data(100)
         # freeze the encoder
         self.model.eval()
         with torch.no_grad():
@@ -68,8 +68,8 @@ class PIG_agent(nn.Module):
 
     def train(self):
         # train the model
-        for epoch in trange(self.epochs, desc="Training the model"):
-            for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch)):
+        for epoch in range(self.epochs, desc="Training the model"):
+            for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
                 human_data=sample['human']
                 robot_data=sample['robot']

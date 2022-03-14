@@ -36,6 +36,8 @@ namespace{
     __device__ __forceinline__ scalar_t d_kernel(scalar_t d, scalar_t L, scalar_t B) {
         return 1/B * (d_sigmoid((d+L/2)/B) - d_sigmoid((d-L/2)/B));
     }
+    // constant memory for the max probability
+    __constant__ float d_max_prob;
     // the kernel function to compute the histogram
     template<typename scalar_t>
     __global__ void entropy_cuda_forward_kernel(torch::PackedTensorAccessor32<scalar_t,4,torch::RestrictPtrTraits> input,
@@ -60,6 +62,8 @@ namespace{
             depth_prob += kernel(input[n][p][i][4]-t,L,B)/patch_size;
             depth_prob += kernel(input[n][p][i][5]-t,L,B)/patch_size;
         }
+        prob = prob / (3.0*patch_size*d_max_prob);
+        depth_prob = depth_prob / (3.0*patch_size*d_max_prob);
         // update the output
         atomicAdd(&entropy_output[n][0][p],entropy(prob));
         atomicAdd(&entropy_output[n][1][p],entropy(depth_prob));
@@ -78,13 +82,17 @@ namespace{
         int p = blockIdx.x;
         // the thread index
         int t = threadIdx.x;
-        float prob = 0;
+        float prob=0;
+        // RGB -> R + 256 * G + 256^2 * B
+        // Rule of sum of probabilities
+        // P_RGB = P(R U G U B) = (P(R) + P(G) + P(B)) / 3
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][1]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][2]-t,L,B)/patch_size;
+            prob += kernel(input[n][p][i][0]-t,L,B);
+            prob += kernel(input[n][p][i][1]-t,L,B);
+            prob += kernel(input[n][p][i][2]-t,L,B);
         }
+        prob = prob / (3.0*patch_size*d_max_prob);
         // update the output
         atomicAdd(&entropy_output[n][0][p],entropy(prob));
     }
@@ -105,8 +113,9 @@ namespace{
         float depth_prob=0;
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            depth_prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
+            depth_prob += kernel(input[n][p][i][0]-t,L,B);
         }
+        depth_prob = depth_prob / (patch_size*d_max_prob);
         // update the output
         atomicAdd(&entropy_output[n][0][p],entropy(depth_prob));
     }
@@ -128,29 +137,31 @@ namespace{
         float prob = 0, depth_prob=0;
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][1]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][2]-t,L,B)/patch_size;
-            depth_prob += kernel(input[n][p][i][3]-t,L,B)/patch_size;
-            depth_prob += kernel(input[n][p][i][4]-t,L,B)/patch_size;
-            depth_prob += kernel(input[n][p][i][5]-t,L,B)/patch_size;
+            prob += kernel(input[n][p][i][0]-t,L,B);
+            prob += kernel(input[n][p][i][1]-t,L,B);
+            prob += kernel(input[n][p][i][2]-t,L,B);
+            depth_prob += kernel(input[n][p][i][3]-t,L,B);
+            depth_prob += kernel(input[n][p][i][4]-t,L,B);
+            depth_prob += kernel(input[n][p][i][5]-t,L,B);
         }
+        prob = prob / (3.0*patch_size*d_max_prob);
+        depth_prob = depth_prob / (3.0*patch_size*d_max_prob);
         // the derivative of the entropy function
-        float d_prob = d_entropy_out[n][0][p] * d_entropy(prob);
-        float d_depth_prob = d_entropy_out[n][1][p] * d_entropy(depth_prob);
+        float d_prob = d_entropy_out[n][0][p] * d_entropy(prob/3);
+        float d_depth_prob = d_entropy_out[n][1][p] * d_entropy(depth_prob/3);
         prob = 0;
         depth_prob=0;
         // compute the gradient
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            prob += d_kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            prob += d_kernel(input[n][p][i][1]-t,L,B)/patch_size;
-            prob += d_kernel(input[n][p][i][2]-t,L,B)/patch_size;
-            grad_out[n][0][p][i] += d_prob * prob;
-            depth_prob += d_kernel(input[n][p][i][3]-t,L,B)/patch_size;
-            depth_prob += d_kernel(input[n][p][i][4]-t,L,B)/patch_size;
-            depth_prob += d_kernel(input[n][p][i][5]-t,L,B)/patch_size;
-            grad_out[n][1][p][i] += d_depth_prob * depth_prob;
+            prob += d_kernel(input[n][p][i][0]-t,L,B);
+            prob += d_kernel(input[n][p][i][1]-t,L,B);
+            prob += d_kernel(input[n][p][i][2]-t,L,B);
+            grad_out[n][0][p][i] += d_prob * prob / (3.0*patch_size*d_max_prob);
+            depth_prob += d_kernel(input[n][p][i][3]-t,L,B);
+            depth_prob += d_kernel(input[n][p][i][4]-t,L,B);
+            depth_prob += d_kernel(input[n][p][i][5]-t,L,B);
+            grad_out[n][1][p][i] += d_depth_prob * depth_prob / (3.0*patch_size*d_max_prob);
         }
     }
     // the backward kernel function to compute the gradient
@@ -171,20 +182,21 @@ namespace{
         float prob = 0;
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][1]-t,L,B)/patch_size;
-            prob += kernel(input[n][p][i][2]-t,L,B)/patch_size;
+            prob += kernel(input[n][p][i][0]-t,L,B);
+            prob += kernel(input[n][p][i][1]-t,L,B);
+            prob += kernel(input[n][p][i][2]-t,L,B);
         }
+        prob = prob / (3.0*patch_size*d_max_prob);
         // the derivative of the entropy function
         float d_prob = d_entropy_out[n][0][p] * d_entropy(prob);
         prob = 0;
         // compute the gradient
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            prob += d_kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            prob += d_kernel(input[n][p][i][1]-t,L,B)/patch_size;
-            prob += d_kernel(input[n][p][i][2]-t,L,B)/patch_size;
-            grad_out[n][0][p][i] += d_prob * prob;
+            prob += d_kernel(input[n][p][i][0]-t,L,B);
+            prob += d_kernel(input[n][p][i][1]-t,L,B);
+            prob += d_kernel(input[n][p][i][2]-t,L,B);
+            grad_out[n][0][p][i] += d_prob * prob / (3.0*patch_size*d_max_prob);
         }
     }
     template<typename scalar_t>
@@ -204,16 +216,17 @@ namespace{
         float depth_prob=0;
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            depth_prob += kernel(input[n][p][i][0]-t,L,B)/patch_size;
+            depth_prob += kernel(input[n][p][i][0]-t,L,B);
         }
+        depth_prob = depth_prob / (patch_size*d_max_prob);
         // the derivative of the entropy function
         float d_depth_prob = d_entropy_out[n][0][p] * d_entropy(depth_prob);
         depth_prob=0;
         // compute the gradient
         #pragma unroll
         for(int i=0;i<patch_size;i++){
-            depth_prob += d_kernel(input[n][p][i][0]-t,L,B)/patch_size;
-            grad_out[n][0][p][i] += d_depth_prob * depth_prob;
+            depth_prob += d_kernel(input[n][p][i][0]-t,L,B);
+            grad_out[n][0][p][i] += d_depth_prob * depth_prob / (patch_size*d_max_prob);
         }
     }
 } // namespace
@@ -231,6 +244,9 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     // the parameters for the kernel function
     const float L=1.0/255.0;
     const float B=bandwidth;
+    // move max_prob to the constant memory
+    const float max_prob=1.0 / (1.0 + exp(-(L/2)/B)) - 1.0 / (1.0 + exp((L/2)/B));
+    cudaMemcpyToSymbol(d_max_prob, &max_prob, sizeof(float));
     // get the shape of the input tensor
     // N x P x R x C
     int N = x.size(0);
@@ -238,7 +254,7 @@ torch::Tensor entropy_cuda_forward(torch::Tensor x, float bandwidth){
     int R = x.size(2);
     int C = x.size(3);
     // block size
-    dim3 threads(255);
+    dim3 threads(256);
     // grid size
     dim3 grid(P,N);
     // define the output tensor
@@ -325,6 +341,9 @@ torch::Tensor entropy_cuda_backward(torch::Tensor x,
     // the parameters for the kernel function
     const float L=1.0/255.0;
     const float B=bandwidth;
+    // move max_prob to the constant memory
+    const float max_prob=1.0 / (1.0 + exp(-(L/2)/B)) - 1.0 / (1.0 + exp((L/2)/B));;
+    cudaMemcpyToSymbol(d_max_prob, &max_prob, sizeof(float));
     // get the shape of the input tensor
     // N x C x H x W x R 
     int N = x.size(0);
@@ -332,7 +351,7 @@ torch::Tensor entropy_cuda_backward(torch::Tensor x,
     int R = x.size(2);
     int C = x.size(3);
     // block size
-    dim3 threads(255);
+    dim3 threads(256);
     // grid size
     dim3 grid(P,N);
     // define the output tensor (the gradient)

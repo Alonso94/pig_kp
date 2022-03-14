@@ -6,6 +6,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 import cv2
 
+from pig.entropy_layer.entropy import Entropy
+
 import matplotlib.pyplot as plt
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -27,8 +29,10 @@ class DatasetFromMIME(Dataset):
 
         self.visualize_preprocessing=False
 
+        self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
+
         # load the dataset if it's already been created
-        data_path='datasets/MIME_dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames_depth({5}).pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames, self.with_depth)
+        data_path='datasets/MIME_dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames_depth_{5}.pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames, self.with_depth)
         if os.path.exists(data_path):
             print('Loading dataset from',data_path)
             d = torch.load(data_path)
@@ -95,24 +99,39 @@ class DatasetFromMIME(Dataset):
         return sample
 
     def preprocess(self,frame,i):
-        # apply bilateral filter to the frame
-        bilateral=cv2.bilateralFilter(frame,9,150,150)
-        # blur the frame
-        smooth=cv2.blur(bilateral,(150,150))
-        # divide the frame by the blurred frame
-        division=cv2.divide(frame,smooth,scale=255)
+        # # convert the frame to rgb
+        # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image=frame
         # sharpen the frame
-        frame=cv2.addWeighted(division,2.0,cv2.GaussianBlur(frame,(0,0),5),-0.5,0)
-        if i==0 and self.visualize_preprocessing:
-            fig,axes=plt.subplots(2,2, constrained_layout=True)
-            axes[0,0].imshow(bilateral)
-            axes[0,0].set_title('bilateral filter')
-            axes[0,1].imshow(smooth)
-            axes[0,1].set_title('blur')
+        sharp=cv2.addWeighted(frame,2.5,cv2.GaussianBlur(frame,(0,0),49),-0.5,0) 
+        # blur the frame
+        smooth=cv2.blur(sharp,(250,250))
+        # divide the frame by the blurred frame
+        division=cv2.divide(sharp,smooth,scale=255)
+        frame=division
+        # # # apply bilateral filter to the frame
+        # frame=cv2.bilateralFilter(division,9,250,250)
+        # frame=sharp 
+        if i==90 and self.visualize_preprocessing:
+            fig,axes=plt.subplots(2,3, constrained_layout=True)
+            axes[0,0].imshow(image)
+            axes[0,0].set_title('input image')
+            axes[0,1].imshow(sharp)
+            axes[0,1].set_title('sharpened image')
+            axes[0,2].imshow(smooth)
+            axes[0,2].set_title('blur')
             axes[1,0].imshow(division)
             axes[1,0].set_title('divide')
             axes[1,1].imshow(frame)
-            axes[1,1].set_title('sharpen')
+            axes[1,1].set_title('-')
+            # convert the frame to a tensor
+            frame_t=torch.from_numpy(frame).float().to(device)
+            frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
+            # pass the frame to the entropy layer
+            entropy=self.entropy_layer(frame_t)
+            # show the entropy
+            axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
+            axes[1,2].set_title('entropy')
             # remove the ticks
             for ax in axes.flat:
                 ax.set(xticks=[],yticks=[])

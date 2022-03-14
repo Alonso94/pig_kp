@@ -14,11 +14,11 @@ wandb.config={
     'channels':3, # RGB + 3 for depth
     # parameters for agent
     'batch_size':16,
-    'learning_rate':0.0001,
+    'learning_rate':0.001,
     'num_keypoints':16,
-    'epochs':50,
+    'epochs':200,
     'log_video':True,
-    'log_video_every':10,
+    'log_video_every':20,
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
@@ -30,7 +30,7 @@ wandb.config={
     # parameters for the pcl loss
     'num_samples':8,
     'margin_for_matrix_contrastive_loss':0.5,
-    'contrastive_loss_weight':0.0,
+    'contrastive_loss_weight':10.0,
     'matches_loss_weight':5.0,
     'non_matches_loss_weight':0.0,
     'sigma_for_mcl_soft':0.25,
@@ -39,7 +39,7 @@ wandb.config={
 }
 
 wandb.init(project="pig-test", name="pig-test", entity="3liyounes94", config=wandb.config,
-              # mode="disabled"
+              mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)
