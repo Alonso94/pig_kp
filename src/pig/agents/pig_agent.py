@@ -3,7 +3,6 @@ from pig.models.kpae import Encoder
 from pig.utils.extract_patches import PatchExtractor
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
 from pig.losses.pig import PatchInfoGainLoss
-from pig.losses.pcl import PatchContrastiveLoss
 from pig.losses.scl import SpatialConsistencyLoss
 
 import torch
@@ -35,6 +34,14 @@ class PIG_agent(nn.Module):
         # initialize the pig loss
         self.pig_loss=PatchInfoGainLoss(config)
         # initliaze the pcl loss
+        self.learn_representation=False
+        if config['pcl_type']=='histogram':
+            from pig.losses.pcl_histogram import PatchContrastiveLoss
+        if config['pcl_type']=='representation':
+            from pig.losses.pcl_representation import PatchContrastiveLoss
+        if config['pcl_type']=='learning':
+            from pig.losses.pcl_learning import PatchContrastiveLoss
+            self.learn_representation=True
         self.pcl_loss=PatchContrastiveLoss(config)
         # initialize the spatial consistency loss
         self.scl_loss=SpatialConsistencyLoss(config)
@@ -67,6 +74,21 @@ class PIG_agent(nn.Module):
         self.model.train()
 
     def train(self):
+        if self.learn_representation:
+            for epoch in trange(self.epochs, desc="Training the model"):
+                for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
+                    # get the data
+                    human_data=sample['human']
+                    robot_data=sample['robot']
+                    # Training the model using human data
+                    # permute the data and move them to the device, enable the gradients
+                    human_data=human_data.float().permute(0,1,4,2,3).to(device)
+                    with torch.no_grad():
+                        # get the output
+                        coords1=self.model(human_data)
+                        # generate feature maps around keypoints
+                        feature_maps=self.patch_extractor(coords1,human_data.shape[-2:])
+                    self.pcl_loss.train_representation(coords1.clone(),feature_maps,human_data)
         # train the model
         for epoch in trange(self.epochs, desc="Training the model"):
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
@@ -83,7 +105,7 @@ class PIG_agent(nn.Module):
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                # loss+=self.pcl_loss(feature_maps,human_data)
+                # loss+=self.pcl_loss(coords1.clone(),feature_maps,human_data)
                 loss+=self.pig_loss(feature_maps,human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()

@@ -39,9 +39,10 @@ class Encoder(nn.Module):
         self.bn4=nn.BatchNorm2d(self.num_feature_maps)
         # add another layer to get a feature map bigger than the original image
         # the idea is to give keypoints an opportunity to go there and be inactive
-        self.fm_conv_5=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps,kernel_size=self.padding*2+2,stride=1)
-        torch.nn.init.normal_(self.fm_conv_5.weight)
-        self.bn5=nn.BatchNorm2d(self.num_feature_maps)
+        if self.padding > 0: 
+            self.fm_conv_5=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps,kernel_size=self.padding*2+2,stride=1)
+            torch.nn.init.normal_(self.fm_conv_5.weight)
+            self.bn5=nn.BatchNorm2d(self.num_feature_maps)
         mean=[0.485, 0.456, 0.406]+[0.4]*(self.channels-3)
         std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
         self.normalize = transforms.Normalize(mean,std)
@@ -76,7 +77,10 @@ class Encoder(nn.Module):
         expected_y=torch.sum(weights*y_grid,dim=-1,keepdim=True)
         # concatenate the expected coordinates to the feature maps
         # subtract padding to get the coordinates in the original image
-        coords=torch.cat([expected_x-self.padding,expected_y-self.padding],dim=-1)
+        if self.padding > 0: 
+            coords=torch.cat([expected_x-self.padding,expected_y-self.padding],dim=-1)
+        else:
+            coords=torch.cat([expected_x,expected_y],dim=-1)
         # visualize the expected coordinates
         # fig,ax=plt.subplots()
         # ax.imshow(img, cmap='jet')
@@ -133,10 +137,11 @@ class Encoder(nn.Module):
         # grad mean =  2.4e-22
         # x=F.leaky_relu(x)
         # N * SF x KP x H+padding x W+padding
-        x=self.fm_conv_5(x)
-        x=F.relu(x)
-        if self.batch_norm:
-            x=self.bn5(x)
+        if self.padding > 0:
+            x=self.fm_conv_5(x)
+            x=F.relu(x)
+            if self.batch_norm:
+                x=self.bn5(x)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
@@ -151,8 +156,8 @@ class Encoder(nn.Module):
         # reshape the coordinates
         # N x SF x KP x 2
         coords=coords.view(N,SF,-1,2)
-        if self.count%100==0:
-            self.log_feature_maps(x)
+        # if self.count%100==0:
+        #     self.log_feature_maps(x)
         self.count+=1
         return coords
 

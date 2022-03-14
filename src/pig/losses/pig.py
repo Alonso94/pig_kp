@@ -49,7 +49,7 @@ class PatchInfoGainLoss(nn.Module):
         wandb.log({'masked_image':wandb.Image(fig)})
 
     def threshold(self, fm):
-        fm-=0.5
+        fm-=0.4
         fm=F.sigmoid(10000*fm)
         # # visualize the thresholded gaussian
         # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
@@ -63,14 +63,14 @@ class PatchInfoGainLoss(nn.Module):
         # grad mean = 2.3e-11
         # depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
         rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
-        # penalize the background by subtract -0.1
-        rgb_entropy-=0.1
         # plot_entropy(images[0,0],rgb_entropy[0])
         # joint_entropy=self.joint_entropy(images)
         # conditional_entropy=joint_entropy-depth_entropy
         # plot_joint_entropy(images[0],joint_entropy[0,0],'Conditional')
         # sum the entropy of each image
         rgb_entropy_sum=rgb_entropy.sum(dim=(-1,-2))
+        # penalize the background by subtract -0.1
+        rgb_entropy-=0.1
         # generate the gaussians around keypoints
         # aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
         aggregated_feature_maps=feature_maps.sum(dim=2)
@@ -85,7 +85,6 @@ class PatchInfoGainLoss(nn.Module):
         # we want to encourage maximizing the entropy in the masked regions
         # at the same time encourage our keypoints to spread out
         masked_entropy_sum=torch.sum(masked_depth_entropy,dim=(-1,-2))
-        # print("masked_entropy_sum",masked_entropy_sum[0,0])
         # masked_entropy_sum.register_hook(lambda grad: print("masked_entropy_sum",grad.mean()))
         # grad mean =  5.1e-7
         masked_entropy_loss=1-masked_entropy_sum/rgb_entropy_sum

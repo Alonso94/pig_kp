@@ -1,7 +1,5 @@
-from turtle import forward
 from pig.histogram_layer.histogram import Histogram
 from pig.losses.mcl import MatrixContrastiveLoss
-from pig.utils.extract_patches import PatchExtractor
 from pig.utils.plot_entropy_histogram import *
 
 import torch
@@ -27,8 +25,6 @@ class PatchContrastiveLoss(nn.Module):
 # we get the patch contrastive loss value
     def __init__(self, config):
         super().__init__()
-        # patch extractor
-        self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation'], aggregate=False)
         # histogram layer
         self.histogram_layer=Histogram(config['bandwidth']).to(device)
         # MCL loss
@@ -39,14 +35,14 @@ class PatchContrastiveLoss(nn.Module):
         self.num_keypoints=config['num_keypoints']
 
     def threshold(self, fm):
-        fm-=0.001
+        fm-=0.4
         fm=F.sigmoid(10000*fm)
         # visualize the thresholded gaussian
         # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
         # plt.show()
         return fm
 
-    def forward(self, feature_maps, images):
+    def forward(self, coords, feature_maps, images):
         if self.num_samples is not None:
             # draw samples
             samples=torch.randint(0,self.num_keypoints,(self.num_samples,),device=device)
