@@ -1,5 +1,5 @@
 from pig.histogram_layer.histogram import Histogram
-from pig.losses.mcl import MatrixContrastiveLoss
+from pig.losses.mcl_histogram import MatrixContrastiveLoss
 from pig.utils.plot_entropy_histogram import *
 
 import torch

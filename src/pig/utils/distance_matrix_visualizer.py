@@ -22,7 +22,7 @@ class DistanceMatrixVisualizer():
         # log the figure with the prefix
         wandb.log({'Matches Distance Matrix':wandb.Image(fig)})
         # plt.show()
-        plt.close(fig)
+        plt.close('all')
         fig, ax =plt.subplots()
         im=ax.matshow(non_matches_dist[0].detach().cpu().numpy(), cmap='jet', vmin = min_v, vmax = max_v)
         ax.set_title('Distance matrix' '\n''(Comparing all entities)')
@@ -32,5 +32,5 @@ class DistanceMatrixVisualizer():
         # log the figure with the prefix
         wandb.log({'Non-Matches Distance Matrix':wandb.Image(fig)})
         # plt.show()
-        plt.close(fig)
+        plt.close('all')
 

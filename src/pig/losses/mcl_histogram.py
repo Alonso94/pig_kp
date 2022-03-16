@@ -31,9 +31,15 @@ class MatrixContrastiveLoss(nn.Module):
         N,NM,M,E=x.shape
         # compute the matches distance matrix
         # d( (N x NM x 1 x M x E) , (N x NM x M  x 1 x E)) = (N x NM x M x M)
-        matches_dist_matrix=torch.norm(x[:,:,None,:,:]-x[:,:,:,None,:],dim=-1)
-        # # soft distance matrix
-        matches_dist_matrix=torch.exp(-matches_dist_matrix/(2*self.sigma**2))
+        # cossine similarity between the entities
+        # N x NM x M x M
+        matches_dist_matrix = F.cosine_similarity(x[:,:,:,None,:], x[:,:,None,:,:], dim=-1)
+        # # Wasserstein computation
+        # a=torch.cumsum(x,dim=-1)/(E)
+        # matches_dist_matrix=torch.sum(torch.abs(a[:,:,None,:,:]-a[:,:,:,None,:]),dim=-1)
+        # soft distance matrix
+        # matches_dist_matrix=torch.exp(-matches_dist_matrix/(2*self.sigma**2))
+        # print("matches_dist_matrix",matches_dist_matrix[0,0])
         # sum for each batch
         # (N x NM x M x M) -> (N)
         matches_dist=matches_dist_matrix.sum(dim=(-1,-2,-3))
@@ -43,9 +49,15 @@ class MatrixContrastiveLoss(nn.Module):
         x=x.contiguous().view(N,NM*M,E)
         # compute the non-matches distance matrix
         # d( (N x 1 x NM*M x E) , (N x NM*M x 1 x E)) = (N x NM*M x NM*M)
-        non_matches_dist_matrix=torch.norm(x[:,None,:,:]-x[:,:,None,:],dim=-1)
+        # cossine similarity between the entities
+        # N x NM*M x NM*M
+        non_matches_dist_matrix = F.cosine_similarity(x[:,None,:,:], x[:,:,None,:], dim=-1)
+        # # Wasserstein computation
+        # a=torch.cumsum(x,dim=-1)/(E)
+        # non_matches_dist_matrix=torch.sum(torch.abs(a[:,None,:,:]-a[:,:,None,:]),dim=-1)
         # soft distance matrix
-        non_matches_dist_matrix=torch.exp(-non_matches_dist_matrix/(2*self.sigma**2))
+        # non_matches_dist_matrix=torch.exp(-non_matches_dist_matrix/(2*self.sigma**2))
+        # print("non_matches_dist_matrix",non_matches_dist_matrix[0])
         # sum for each batch
         # (N x NM*M x NM*M) -> (N)
         non_matches_dist=non_matches_dist_matrix.sum(dim=(-1,-2))

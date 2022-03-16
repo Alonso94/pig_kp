@@ -39,8 +39,11 @@ class PIG_agent(nn.Module):
             from pig.losses.pcl_histogram import PatchContrastiveLoss
         if config['pcl_type']=='representation':
             from pig.losses.pcl_representation import PatchContrastiveLoss
-        if config['pcl_type']=='learning':
-            from pig.losses.pcl_learning import PatchContrastiveLoss
+        if config['pcl_type']=='learning_contrastive':
+            from pig.losses.pcl_learning_contrastive import PatchContrastiveLoss
+            self.learn_representation=True
+        if config['pcl_type']=='learning_AE':
+            from pig.losses.pcl_learning_AE import PatchContrastiveLoss
             self.learn_representation=True
         self.pcl_loss=PatchContrastiveLoss(config)
         # initialize the spatial consistency loss
@@ -55,6 +58,7 @@ class PIG_agent(nn.Module):
         self.log_video_every=config['log_video_every']
         self.save=config['save_model']
         self.epochs=config['epochs']
+        self.representation_epochs=config['representation_epochs']
         # self.log_trajectory()
         # input()
 
@@ -75,7 +79,7 @@ class PIG_agent(nn.Module):
 
     def train(self):
         if self.learn_representation:
-            for epoch in trange(self.epochs, desc="Training the model"):
+            for epoch in trange(self.representation_epochs, desc="Training the representation model"):
                 for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                     # get the data
                     human_data=sample['human']
@@ -105,8 +109,8 @@ class PIG_agent(nn.Module):
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                # loss+=self.pcl_loss(coords1.clone(),feature_maps,human_data)
-                loss+=self.pig_loss(feature_maps,human_data)
+                loss+=self.pcl_loss(coords1.clone(),feature_maps.clone(),human_data)
+                # loss+=self.pig_loss(feature_maps.clone(),human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()

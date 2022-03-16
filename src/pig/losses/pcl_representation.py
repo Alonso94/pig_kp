@@ -34,7 +34,7 @@ class PatchContrastiveLoss(nn.Module):
         # dilation kernel for featuremap generation
         self.dilation_kernel=torch.ones(config['dilation_kernel_size'],config['dilation_kernel_size'],device=device)
         # number of samples
-        self.number_of_samples=config['number_of_samples']
+        self.number_of_samples=config['num_samples']
         self.iterations=config['number_of_rings_around_the_keypoint']
         self.num_keypoints=config['num_keypoints']
 
@@ -47,11 +47,12 @@ class PatchContrastiveLoss(nn.Module):
         return fm
     
     def forward(self, coords, feature_maps, images):
-        if self.number_of_samples is not None:
-            # draw samples
-            samples=torch.randint(0,self.num_keypoints,(self.number_of_samples,),device=device)
-            # get the samples
-            coords=coords[:,:,samples,:]
+        # if self.number_of_samples is not None:
+        #     # draw samples
+        #     samples=torch.randint(0,self.num_keypoints,(self.number_of_samples,),device=device)
+        #     # get the samples
+        #     coords=coords[:,:,samples,:]
+        #     feature_maps=feature_maps[:,:,samples,:]
         # coords.register_hook(lambda grad: print("coords",grad))
         # extract patches
         N,SF,KP,_=coords.shape
@@ -116,7 +117,7 @@ class PatchContrastiveLoss(nn.Module):
         coords[...,1]=coords[...,1]/H
         # add the coordinates to the representation
         representation[...,:2]=coords
-        representation.register_hook(lambda grad: print("representation",grad))
+        # representation.register_hook(lambda grad: print("representation",grad))
         # permute to have the non-matches axis first
         # KP is the non-matches axis, SF is the matches axis
         # N X KP x SF x R
@@ -126,4 +127,4 @@ class PatchContrastiveLoss(nn.Module):
         # log the loss to wandb
         wandb.log({'patch_contrastive_loss':loss.item()})
         torch.cuda.empty_cache()
-        return representation
+        return loss

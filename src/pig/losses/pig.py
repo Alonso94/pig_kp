@@ -47,9 +47,10 @@ class PatchInfoGainLoss(nn.Module):
         # plt.show()
         # log the image to wandb
         wandb.log({'masked_image':wandb.Image(fig)})
+        plt.close('all')
 
     def threshold(self, fm):
-        fm-=0.4
+        fm-=0.5
         fm=F.sigmoid(10000*fm)
         # # visualize the thresholded gaussian
         # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
