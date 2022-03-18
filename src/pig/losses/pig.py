@@ -66,7 +66,7 @@ class PatchInfoGainLoss(nn.Module):
         # plt.savefig('thresholded_gaussian.png')
         return fm
 
-    def forward(self, feature_maps, images):
+    def forward(self, feature_maps, status, images):
         N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
         # feature_maps.register_hook(lambda grad: print("coords_pig",grad.mean()))
@@ -86,6 +86,8 @@ class PatchInfoGainLoss(nn.Module):
         rgb_entropy-=0.1
         # generate the gaussians around keypoints
         # aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
+        # multiply the feature maps with the status
+        feature_maps= status[...,None,None]*feature_maps
         aggregated_feature_maps=feature_maps.sum(dim=2)
         aggregated_mask=self.threshold(aggregated_feature_maps)
         # print(aggregated_mask.shape)

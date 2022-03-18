@@ -69,8 +69,10 @@ class PIG_agent(nn.Module):
         self.model.eval()
         with torch.no_grad():
             human_data=torch.tensor(sample['human']).float().permute(0,3,1,2).to(device).unsqueeze(0)
-            coords=self.model(human_data)
-            self.visualizer.log_video(sample['human'][...,:3],coords,'human')
+            kp=self.model(human_data)
+            coords=kp[...,:2]
+            status=kp[...,2]
+            self.visualizer.log_video(sample['human'][...,:3],coords, status,'human')
             # robot_data=torch.tensor(sample['robot']).float().permute(0,3,1,2).to(device).unsqueeze(0)
             # coords=self.model(robot_data)
             # self.visualizer.log_video(sample['robot'][...,:3],coords,'robot')
@@ -89,10 +91,11 @@ class PIG_agent(nn.Module):
                     human_data=human_data.float().permute(0,1,4,2,3).to(device)
                     with torch.no_grad():
                         # get the output
-                        coords1=self.model(human_data)
+                        kp=self.model(human_data)
+                        coords=kp[...,:2]
                         # generate feature maps around keypoints
-                        feature_maps=self.patch_extractor(coords1,human_data.shape[-2:])
-                    self.pcl_loss.train_representation(coords1.clone(),feature_maps,human_data)
+                        feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
+                    self.pcl_loss.train_representation(coords.clone(),feature_maps,human_data)
         # train the model
         for epoch in trange(self.epochs, desc="Training the model"):
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
@@ -103,14 +106,16 @@ class PIG_agent(nn.Module):
                 # permute the data and move them to the device, enable the gradients
                 human_data=human_data.float().permute(0,1,4,2,3).to(device)
                 # get the output
-                coords1=self.model(human_data)
+                kp=self.model(human_data)
+                coords=kp[...,:2]
+                status=kp[...,2]
                 # generate feature maps around keypoints
-                feature_maps=self.patch_extractor(coords1,human_data.shape[-2:])
+                feature_maps=self.patch_extractor(coords, human_data.shape[-2:])
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                loss+=self.pcl_loss(coords1.clone(),feature_maps.clone(),human_data)
-                # loss+=self.pig_loss(feature_maps.clone(),human_data)
+                # loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
+                loss+=self.pig_loss(feature_maps.clone(), status, human_data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()

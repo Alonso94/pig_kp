@@ -15,9 +15,10 @@ class TrajectoryVisualizer():
         self.colors=[mcd.XKCD_COLORS[k] for k in keys]
         self.counter=0
 
-    def log_video(self,images,coords, label=None):
+    def log_video(self,images,coords, status, label=None):
         # images=images.detach().cpu().permute(0,2,3,1).numpy()
         coords=coords.detach().cpu().numpy().astype(np.int32)[0]
+        status=status.detach().cpu().numpy().astype(np.int32)[0]
         fig,ax=plt.subplots(1)
         lines = []
         for i in range(len(self.colors)):
@@ -28,8 +29,13 @@ class TrajectoryVisualizer():
         def update(i):
             ax.imshow(images[i][:,:,::-1])
             for lnum,line in enumerate(lines):
-                # set data for each line separately.
-                line.set_data(coords[max(i-trajectry_length,0):i,lnum,0], coords[max(i-trajectry_length,0):i,lnum,1])
+                if status[i,lnum]>0.1:
+                    # set data for each line separately.
+                    line.set_data(coords[max(i-trajectry_length,0):i,lnum,0], coords[max(i-trajectry_length,0):i,lnum,1])
+                    # update the coords array for the disappearing points
+                else:
+                    coords[i,lnum,0]=0
+                    coords[i,lnum,1]=0
             scat.set_offsets(coords[i,:,:])
             return lines, scat
         animation=FuncAnimation(fig, update, frames=len(images), interval=20, repeat=False)
