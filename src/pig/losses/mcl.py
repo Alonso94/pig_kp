@@ -15,14 +15,14 @@ class MatrixContrastiveLoss(nn.Module):
 # where entities could be a vector or an image
 # matches_axis is the same entitiy in different occurrences (over time or augmented)
 # non_matches_axis is different entities (e.g. other keypoints)
-    def __init__(self, config):
+    def __init__(self, config, prefix=''):
         super().__init__()
         self.margin=config['margin_for_matrix_contrastive_loss']
         self.sigma=config['sigma_for_mcl_soft']
         self.contrastive_loss_weight=config['contrastive_loss_weight']
         self.matches_loss_weight=config['matches_loss_weight']
         self.non_matches_loss_weight=config['non_matches_loss_weight']
-        self.prefix='MCL'
+        self.prefix=prefix
         self.count=0
         self.visualize_matrices=DistanceMatrixVisualizer()
 

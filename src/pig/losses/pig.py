@@ -50,11 +50,20 @@ class PatchInfoGainLoss(nn.Module):
         plt.close('all')
 
     def threshold(self, fm):
+        # # plot the fm as 3d surface
+        # fig=plt.figure()
+        # ax=fig.add_subplot(111, projection='3d')
+        # X = np.arange(0,fm.shape[3],1)
+        # Y = np.arange(0,fm.shape[2],1)
+        # X, Y = np.meshgrid(X, Y)
+        # ax.plot_surface(X,Y,fm[0,0].detach().cpu().numpy(),cmap='jet')
+        # plt.show()
         fm-=0.5
         fm=F.sigmoid(10000*fm)
         # # visualize the thresholded gaussian
         # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
-        # plt.show()
+        # save figure locally
+        # plt.savefig('thresholded_gaussian.png')
         return fm
 
     def forward(self, feature_maps, images):
@@ -64,6 +73,9 @@ class PatchInfoGainLoss(nn.Module):
         # grad mean = 2.3e-11
         # depth_entropy=self.entropy_layer(images[:,:,-1].unsqueeze(2))[:,:,0]
         rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
+        # plt.imshow(rgb_entropy[0,0].detach().cpu().numpy(),cmap='jet')
+        # save figure locally
+        # plt.savefig('rgb_entropy.png')
         # plot_entropy(images[0,0],rgb_entropy[0])
         # joint_entropy=self.joint_entropy(images)
         # conditional_entropy=joint_entropy-depth_entropy
@@ -80,6 +92,10 @@ class PatchInfoGainLoss(nn.Module):
         # grad mean =  2.7e-7
         # masked depth entropy
         masked_depth_entropy=rgb_entropy*aggregated_mask
+        # plt.imshow(masked_depth_entropy[0,0].detach().cpu().numpy(),cmap='jet')
+        # save figure locally
+        # plt.savefig('masked_depth_entropy.png')
+        # input()
         # print("masked_depth_entropy",masked_depth_entropy.shape)
         # normalize the masked depth entropy
         # masked_depth_entropy=(min_depth_entropy-masked_depth_entropy)/(min_depth_entropy-max_depth_entropy)

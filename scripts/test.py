@@ -32,7 +32,7 @@ wandb.config={
     'masked_entropy_loss_weight':100.0,
     'overlapping_loss_weight':10.0,
     # parameters for the pcl loss
-    'pcl_type': 'representation', # 'histogram', 'representation', 'learning_contrastive' or 'learning_AE'
+    'pcl_type': 'learning_contrastive', # 'histogram', 'representation', 'learning_contrastive' or 'learning_AE'
     'num_samples':8,
     'margin_for_matrix_contrastive_loss':0.6,
     'contrastive_loss_weight':50.0,
@@ -54,7 +54,7 @@ wandb.config={
     'spatial_consistency_loss_weight':1.0,
 }
 
-wandb.init(project="pcl_kp", name="pcl_representation_alone", entity="irosa-ias", config=wandb.config,
+wandb.init(project="pcl_kp", name="pig", entity="irosa-ias", config=wandb.config,
               # mode="disabled"
             )
 

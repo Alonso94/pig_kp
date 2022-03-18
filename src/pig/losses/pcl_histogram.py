@@ -28,7 +28,7 @@ class PatchContrastiveLoss(nn.Module):
         # histogram layer
         self.histogram_layer=Histogram(config['bandwidth']).to(device)
         # MCL loss
-        self.mcl_loss=MatrixContrastiveLoss(config)
+        self.mcl_loss=MatrixContrastiveLoss(config, prefix='patch_contrastive_loss')
         # number of samples
         self.num_samples=config['num_samples']
         # number of keypoints

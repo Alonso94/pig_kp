@@ -34,7 +34,7 @@ class PatchContrastiveLoss(nn.Module):
         # MSE loss
         self.mse_loss=nn.MSELoss()
         # MCL loss
-        self.mcl_loss=MatrixContrastiveLoss(config)
+        self.mcl_loss=MatrixContrastiveLoss(config,prefix='patch_contrastive_loss')
         # initialize the optimizer
         self.optimizer=torch.optim.Adam(list(self.representation_encoder.parameters())+list(self.representation_decoder.parameters()), 
                                             lr=config['lr_for_representation_model'], 

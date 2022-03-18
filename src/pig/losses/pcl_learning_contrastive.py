@@ -29,7 +29,8 @@ class PatchContrastiveLoss(nn.Module):
         # watch the representation model
         wandb.watch(self.representation_model)
         # MCL loss
-        self.mcl_loss=MatrixContrastiveLoss(config)
+        self.mcl_loss=MatrixContrastiveLoss(config,prefix='patch_contrastive_loss')
+        self.mcl_representaation=MatrixContrastiveLoss(config,prefix='representation_learning')
         # initialize the optimizer
         self.optimizer=torch.optim.Adam(self.representation_model.parameters(), 
                                             lr=config['lr_for_representation_model'], 
@@ -160,7 +161,7 @@ class PatchContrastiveLoss(nn.Module):
             # N x KP x M x R
             representations=representations.permute(0,2,1,3)
             # compute the loss
-            loss=self.mcl_loss(representations)
+            loss=self.mcl_representaation(representations)
             # backprop
             loss.backward()
             self.optimizer.step()
