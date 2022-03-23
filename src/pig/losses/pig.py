@@ -58,10 +58,11 @@ class PatchInfoGainLoss(nn.Module):
         # X, Y = np.meshgrid(X, Y)
         # ax.plot_surface(X,Y,fm[0,0].detach().cpu().numpy(),cmap='jet')
         # plt.show()
-        fm-=0.5
+        fm-=0.25
         fm=F.sigmoid(10000*fm)
         # # visualize the thresholded gaussian
-        # plt.imshow(fm[0,0].detach().cpu().numpy(),cmap='gray')
+        # plt.imshow(fm[0,0,0].detach().cpu().numpy(),cmap='gray')
+        # plt.show()
         # save figure locally
         # plt.savefig('thresholded_gaussian.png')
         return fm
@@ -83,10 +84,12 @@ class PatchInfoGainLoss(nn.Module):
         # sum the entropy of each image
         rgb_entropy_sum=rgb_entropy.sum(dim=(-1,-2))
         # penalize the background by subtract -0.1
-        rgb_entropy-=0.1
+        # rgb_entropy-=0.1
         # generate the gaussians around keypoints
         # aggregated_mask=self.patch_extractor(coords, size=(H, W)).to(device)
         # multiply the feature maps with the status
+        # print('status featuremap sum',status,(status[...,None,None]*feature_maps).sum(dim=(-1,-2)))
+        # print("status sum",status[0,0,0].sum(dim=(-1,-2)).shape)
         feature_maps= status[...,None,None]*feature_maps
         aggregated_feature_maps=feature_maps.sum(dim=2)
         aggregated_mask=self.threshold(aggregated_feature_maps)

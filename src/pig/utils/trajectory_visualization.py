@@ -25,17 +25,20 @@ class TrajectoryVisualizer():
             lobj = ax.plot([coords[0,i,0]],[coords[0,i,1]],lw=1,color=self.colors[i])[0]
             lines.append(lobj)
         scat = ax.scatter([coords[0,:,0]],[coords[0,:,1]], s=30, c=self.colors, marker='o')
-        trajectry_length=5
+        trajectory_length=np.zeros(len(self.colors), dtype=np.int32)
         def update(i):
             ax.imshow(images[i][:,:,::-1])
             for lnum,line in enumerate(lines):
                 if status[i,lnum]>0.1:
                     # set data for each line separately.
-                    line.set_data(coords[max(i-trajectry_length,0):i,lnum,0], coords[max(i-trajectry_length,0):i,lnum,1])
+                    num_points=max(i-min(trajectory_length[lnum],5),0)
+                    line.set_data(coords[num_points:i,lnum,0], coords[num_points:i,lnum,1])
+                    trajectory_length[lnum]+=1
                     # update the coords array for the disappearing points
                 else:
-                    coords[i,lnum,0]=0
-                    coords[i,lnum,1]=0
+                    trajectory_length[lnum]=0
+                    coords[i,lnum,0]=-1
+                    coords[i,lnum,1]=-1
             scat.set_offsets(coords[i,:,:])
             return lines, scat
         animation=FuncAnimation(fig, update, frames=len(images), interval=20, repeat=False)
@@ -43,5 +46,5 @@ class TrajectoryVisualizer():
         animation.save('animation_{0}_{1}.gif'.format(label,self.counter), writer=writer)
         video=wandb.Video('animation_{0}_{1}.gif'.format(label,self.counter),format="gif")
         wandb.log({'kp_trajectories':video})
-        # os.remove('animation_{0}_{1}.gif'.format(label,self.counter))
+        os.remove('animation_{0}_{1}.gif'.format(label,self.counter))
         plt.close('all')

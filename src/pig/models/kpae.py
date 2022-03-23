@@ -14,6 +14,7 @@ import wandb
 
 device=torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+
 class Encoder(nn.Module):
 # Keypoint encoder which has a hourglass-like structure
 # with two downsampling layers and two upsampling layers
@@ -142,12 +143,13 @@ class Encoder(nn.Module):
             x=F.relu(x)
             if self.batch_norm:
                 x=self.bn5(x)
-
         # compute the activation_score as the maximum of feature maps
         # N * Sf x KP
         activation_score=torch.amax(x,dim=(-1,-2))
+        # log the activation score as points to wandb
+        wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
-        activation_score=torch.sigmoid(1000*(activation_score-25)).unsqueeze(-1)
+        status=torch.sigmoid(1000*(activation_score-20)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
@@ -157,7 +159,7 @@ class Encoder(nn.Module):
         coords=self.spatial_soft_argmax(x)
         # concatienate the activation score and the coordinates
         # N * SF x KP x 3
-        kp=torch.cat([coords,activation_score],dim=-1)
+        kp=torch.cat([coords,status],dim=-1)
         # coords.register_hook(lambda grad: print("coords out encoder",grad.mean()))
         # grad mean = 2.3e-11
         # N * SF x KP
@@ -165,8 +167,8 @@ class Encoder(nn.Module):
         # reshape the coordinates
         # N x SF x KP x 2
         kp=kp.view(N,SF,-1,3)
-        if self.count%100==0:
-            self.log_feature_maps(x)
+        # if self.count%100==0:
+        #     self.log_feature_maps(x)
         self.count+=1
         return kp
 

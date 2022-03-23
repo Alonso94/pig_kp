@@ -80,6 +80,7 @@ class PIG_agent(nn.Module):
         self.model.train()
 
     def train(self):
+        # self.log_trajectory()
         if self.learn_representation:
             for epoch in trange(self.representation_epochs, desc="Training the representation model"):
                 for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
@@ -116,6 +117,7 @@ class PIG_agent(nn.Module):
                 # loss+=self.scl_loss(coords1.clone())
                 # loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
                 loss+=self.pig_loss(feature_maps.clone(), status, human_data)
+                loss+=status.sum(dim=-1).mean()
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()

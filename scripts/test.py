@@ -17,7 +17,7 @@ wandb.config={
     # parameters for agent
     'batch_size':4,
     'learning_rate':0.001,
-    'num_keypoints':12,
+    'num_keypoints':32,
     'padding':0,
     'epochs':200,
     'log_video':True,
@@ -54,7 +54,7 @@ wandb.config={
     'spatial_consistency_loss_weight':1.0,
 }
 
-wandb.init(project="pig_test", name="pig", entity="3liyounes94", config=wandb.config,
+wandb.init(project="pig_test", name="pig+status+training", entity="3liyounes94", config=wandb.config,
               # mode="disabled"
             )
 
