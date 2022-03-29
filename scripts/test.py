@@ -20,7 +20,7 @@ wandb.config={
     'num_keypoints':12,
     'padding':0,
     'epochs':200,
-    'log_video':False,
+    'log_video':True,
     'log_video_every':50,
     'save_model':False,
     'batch_norm':True,
@@ -57,7 +57,7 @@ wandb.config={
 }
 
 wandb.init(project="pig_test", name="pig+pcl_coords", entity="3liyounes94", config=wandb.config,
-              mode="disabled"
+              # mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

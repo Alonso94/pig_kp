@@ -94,12 +94,13 @@ class PIG_agent(nn.Module):
                     # Training the model using human data
                     # permute the data and move them to the device, enable the gradients
                     human_data=human_data.float().permute(0,1,4,2,3).to(device)
-                    with torch.no_grad():
-                        # get the output
-                        kp=self.model(human_data)
-                        coords=kp[...,:2]
-                        # generate feature maps around keypoints
-                        feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
+                    # generate random coordinates (integers between 0 and the size of the image)
+                    random_x=torch.randint(0,human_data.shape[3],(*human_data.shape[:2],1),dtype=torch.int64)
+                    random_y=torch.randint(0,human_data.shape[2],(*human_data.shape[:2],1),dtype=torch.int64)
+                    # concatenate the random coordinates
+                    coords=torch.cat((random_x,random_y),dim=1)
+                    # generate feature maps around keypoints
+                    feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
                     self.pcl_loss.train_representation(coords.clone(),feature_maps,human_data)
         # train the model
         for epoch in trange(self.epochs, desc="Training the model"):
