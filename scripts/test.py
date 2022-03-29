@@ -17,11 +17,11 @@ wandb.config={
     # parameters for agent
     'batch_size':4,
     'learning_rate':0.001,
-    'num_keypoints':32,
+    'num_keypoints':12,
     'padding':0,
     'epochs':200,
     'log_video':True,
-    'log_video_every':20,
+    'log_video_every':50,
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
@@ -30,15 +30,15 @@ wandb.config={
     'std_for_featuremap_generation':9,
     # 'threshold_for_featuremaps':0.0001,
     'masked_entropy_loss_weight':100.0,
-    'overlapping_loss_weight':10.0,
+    'overlapping_loss_weight':1.0,
     # parameters for the pcl loss
     'pcl_type': 'representation', # 'histogram', 'representation', 'learning_contrastive' or 'learning_AE'
     'num_samples':8,
     'margin_for_matrix_contrastive_loss':0.6,
-    'contrastive_loss_weight':50.0,
-    'matches_loss_weight':0.0,
+    'contrastive_loss_weight':0.0,
+    'matches_loss_weight':1.0,
     'non_matches_loss_weight':0.0,
-    'sigma_for_mcl_soft':0.25,
+    'sigma_for_mcl_soft':0.5,
     'dilation_kernel_size':7,
     'number_of_rings_around_the_keypoint':3,
     # hyperparameters for training the representation model
@@ -52,9 +52,11 @@ wandb.config={
     "noised_coords": False,
     # parameters for spatial consistency loss
     'spatial_consistency_loss_weight':1.0,
+    # status part of the loss
+    'status_weight':0.3,
 }
 
-wandb.init(project="pig_test", name="pig+status+training", entity="3liyounes94", config=wandb.config,
+wandb.init(project="pig_test", name="pig+pcl_coords", entity="3liyounes94", config=wandb.config,
               # mode="disabled"
             )
 

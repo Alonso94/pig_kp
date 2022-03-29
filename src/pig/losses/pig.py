@@ -125,13 +125,14 @@ class PatchInfoGainLoss(nn.Module):
         pig_loss=pig_loss.mean()
         # pig_loss.register_hook(lambda grad: print("pig_loss",grad.mean()))
         # grad mean =  1.0
-        if self.count%100==0:
-            self.log_masked_image(images[0,0],masked_depth_entropy[0,0])
-        self.count+=1
+        # if self.count%100==0:
+        #     self.log_masked_image(images[0,0],masked_depth_entropy[0,0])
         # log to wandb
-        wandb.log({'pig_loss':pig_loss.item(),
+        if self.count%10==0:
+            wandb.log({'pig_loss':pig_loss.item(),
                    'pig/masked_entropy_percentage':masked_entropy_loss.mean().item(),
                    'pig/overlapping_loss':overlapping_loss.mean().item()})
+        self.count+=1
         torch.cuda.empty_cache()
         return pig_loss
 

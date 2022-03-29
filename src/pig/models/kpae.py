@@ -48,6 +48,9 @@ class Encoder(nn.Module):
         std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
         self.normalize = transforms.Normalize(mean,std)
         self.count=0
+        # positional encoding for the keypoints
+        order=torch.arange(self.num_feature_maps).to(device)
+        self.order=order.view(1,-1,1)
     
 
     def spatial_soft_argmax(self,x):
@@ -147,7 +150,7 @@ class Encoder(nn.Module):
         # N * Sf x KP
         activation_score=torch.amax(x,dim=(-1,-2))
         # log the activation score as points to wandb
-        wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
+        # wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
         status=torch.sigmoid(1000*(activation_score-20)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
@@ -157,16 +160,31 @@ class Encoder(nn.Module):
         # x=gaussian_blur2d(x,kernel_size=(3,3),sigma=(1.5,1.5))
         # compute the coordinates of the keypoints
         coords=self.spatial_soft_argmax(x)
-        # concatienate the activation score and the coordinates
-        # N * SF x KP x 3
+        # concatienate the order, the status and the coordinates
+        # N * SF x KP x 4
+        # order=self.order.repeat(N*SF,1,1).to(x.device)
         kp=torch.cat([coords,status],dim=-1)
+        # reshape the coordinates
+        # N x SF x KP x 4
+        kp=kp.view(N,SF,-1,3)
+        # print(kp.shape)
+        # # sort the keypoints according to their status
+        # # N x SF x KP x 4
+        # kp[:,:,:]=kp[:,:,:].sort(dim=-1,descending=True)[0]
+        # print(kp.shape)
+        # # find the number of active keypoints
+        # # N x SF
+        # num_active_kp=torch.sum(kp[:,:,:,3],dim=-1)
+        # print(num_active_kp)
+        # num_active_kp=num_active_kp.max()
+        # # drop the inactive keypoints
+        # # N x SF x KP x 4
+        # kp=kp[:,:,:int(num_active_kp),:]
+        # print(kp.shape)
         # coords.register_hook(lambda grad: print("coords out encoder",grad.mean()))
         # grad mean = 2.3e-11
         # N * SF x KP
         # coord=spatial_soft_argmax2d(x,normalized_coordinates=True)
-        # reshape the coordinates
-        # N x SF x KP x 2
-        kp=kp.view(N,SF,-1,3)
         # if self.count%100==0:
         #     self.log_feature_maps(x)
         self.count+=1

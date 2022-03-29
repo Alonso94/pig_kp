@@ -1,4 +1,5 @@
 from pig.losses.mcl import MatrixContrastiveLoss
+from pig.losses.max import MaxMatchLoss
 
 import torch
 import torch.nn as nn
@@ -30,7 +31,7 @@ class PatchContrastiveLoss(nn.Module):
     def __init__(self, config):
         super().__init__()
         # MCL loss
-        self.mcl_loss=MatrixContrastiveLoss(config)
+        self.mcl_loss=MaxMatchLoss(config)
         # dilation kernel for featuremap generation
         self.dilation_kernel=torch.ones(config['dilation_kernel_size'],config['dilation_kernel_size'],device=device)
         # number of samples
