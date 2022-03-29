@@ -23,12 +23,20 @@ class MaxMatchLoss(nn.Module):
         self.count=0
         self.visualize_matrices=DistanceMatrixVisualizer()
 
-    def forward(self, x):
+    def forward(self, x, status):
         # N batch_size, M matches_axis, NM non_matches_axis, E entity_size
         N,NM,M,E=x.shape
+        N,NM,M=status.shape
+        # create thee status joint matrix
+        # N x NM x M x M
+        status_joint=status[:,:,None,:]*status[:,:,:,None]
         # compute the matches distance matrix
         # d( (N x NM x 1 x M x E) , (N x NM x M  x 1 x E)) = (N x NM x M x M)
         matches_dist_matrix=torch.norm(x[:,:,None,:,:]-x[:,:,:,None,:],dim=-1)
+        # # multiply the matches distance matrix with the status joint matrix
+        # element wise
+        # N x NM x M x M
+        matches_dist_matrix=matches_dist_matrix*status_joint
         # print(f"matches_dist_matrix={matches_dist_matrix[0,0]}")
         # # soft distance matrix
         matches_dist_matrix=torch.exp(-matches_dist_matrix/(2*self.sigma**2))
@@ -47,9 +55,17 @@ class MaxMatchLoss(nn.Module):
         # reshape to have all entities in the same axis
         # (N x NM x M x E) -> (N x NM*M x E)
         x=x.contiguous().view(N,NM*M,E)
+        status=status.contiguous().view(N,NM*M)
+        # create the status joint matrix
+        # N x NM*M x NM*M
+        status_joint=status[:,None,:]*status[:,:,None]
         # compute the non-matches distance matrix
         # d( (N x 1 x NM*M x E) , (N x NM*M x 1 x E)) = (N x NM*M x NM*M)
         non_matches_dist_matrix=torch.norm(x[:,None,:,:]-x[:,:,None,:],dim=-1)
+        # multiply the non-matches distance matrix with the status joint matrix
+        # element wise
+        # N x NM*M x NM*M
+        non_matches_dist_matrix=non_matches_dist_matrix*status_joint
         # soft distance matrix
         non_matches_dist_matrix=torch.exp(-non_matches_dist_matrix/(2*self.sigma**2))
         # log the losses (with prefix)

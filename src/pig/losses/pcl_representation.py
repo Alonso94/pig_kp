@@ -47,7 +47,7 @@ class PatchContrastiveLoss(nn.Module):
         # plt.show()
         return fm
     
-    def forward(self, coords, feature_maps, images):
+    def forward(self, coords, feature_maps, status, images):
         # if self.number_of_samples is not None:
         #     # draw samples
         #     samples=torch.randint(0,self.num_keypoints,(self.number_of_samples,),device=device)
@@ -123,8 +123,9 @@ class PatchContrastiveLoss(nn.Module):
         # KP is the non-matches axis, SF is the matches axis
         # N X KP x SF x R
         representation=representation.permute(0,2,1,3)
+        status=status.permute(0,2,1)
         # pass the representations to the MCL loss
-        loss=self.mcl_loss(representation)
+        loss=self.mcl_loss(representation, status)
         # log the loss to wandb
         wandb.log({'patch_contrastive_loss':loss.item()})
         torch.cuda.empty_cache()

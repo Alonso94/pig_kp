@@ -32,7 +32,7 @@ class PatchContrastiveLoss(nn.Module):
         # MCL loss
         self.mcl_loss=MaxMatchLoss(config)
     
-    def forward(self, coords, feature_maps, images):
+    def forward(self, coords, feature_maps, status, images):
         # if self.number_of_samples is not None:
         #     # draw samples
         #     samples=torch.randint(0,self.num_keypoints,(self.number_of_samples,),device=device)
@@ -61,7 +61,7 @@ class PatchContrastiveLoss(nn.Module):
         # N X KP x SF x 2
         coords=coords.permute(0,2,1,3)
         # pass the representations to the MCL loss
-        loss=self.mcl_loss(coords)
+        loss=self.mcl_loss(coords, status)
         # log the loss to wandb
         wandb.log({'patch_contrastive_loss':loss.item()})
         torch.cuda.empty_cache()

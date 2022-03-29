@@ -122,7 +122,7 @@ class PIG_agent(nn.Module):
                 # compute the loss
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
-                loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), human_data)
+                loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
                 loss+=self.pig_loss(feature_maps.clone(), status, human_data)
                 loss+=self.status_weight * status.sum(dim=-1).mean()
                 # compute the gradients
