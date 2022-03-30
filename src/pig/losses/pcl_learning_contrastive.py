@@ -1,4 +1,3 @@
-from builtins import print
 from pig.models.representation_model import RepresentationModel
 from pig.losses.mcl import MatrixContrastiveLoss
 

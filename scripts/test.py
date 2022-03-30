@@ -17,7 +17,7 @@ wandb.config={
     # parameters for agent
     'batch_size':4,
     'learning_rate':0.001,
-    'num_keypoints':12,
+    'num_keypoints':32,
     'padding':0,
     'epochs':200,
     'log_video':True,
@@ -29,8 +29,9 @@ wandb.config={
     'bandwidth':0.001,
     'std_for_featuremap_generation':9,
     # 'threshold_for_featuremaps':0.0001,
-    'masked_entropy_loss_weight':100.0,
-    'overlapping_loss_weight':1.0,
+    'masked_entropy_loss_weight':1000.0,
+    'overlapping_loss_weight':10.0,
+    'movement_loss_weight':5.0,
     # parameters for the pcl loss
     'pcl_type': 'representation', # 'histogram', 'representation', 'learning_contrastive' or 'learning_AE'
     'num_samples':8,

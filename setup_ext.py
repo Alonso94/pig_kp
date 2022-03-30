@@ -22,13 +22,3 @@ setup(name='histogram_layer',
                    )
                    ],
                    cmdclass={'build_ext': cpp_extension.BuildExtension} )
-
-
-setup(name='joint_entropy_layer',
-      ext_modules=[
-            cpp_extension.CUDAExtension(name='joint_entropy_layer',
-                  sources=['src/pig/joint_entropy/joint_entropy_cuda.cpp',
-                   'src/pig/joint_entropy/joint_entropy_cuda_kernel.cu'],
-                  )
-            ],
-      cmdclass={'build_ext': cpp_extension.BuildExtension} )

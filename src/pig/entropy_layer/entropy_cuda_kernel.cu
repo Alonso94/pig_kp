@@ -147,8 +147,8 @@ namespace{
         prob = prob / (3.0*patch_size*d_max_prob);
         depth_prob = depth_prob / (3.0*patch_size*d_max_prob);
         // the derivative of the entropy function
-        float d_prob = d_entropy_out[n][0][p] * d_entropy(prob/3);
-        float d_depth_prob = d_entropy_out[n][1][p] * d_entropy(depth_prob/3);
+        float d_prob = d_entropy_out[n][0][p] * d_entropy(prob);
+        float d_depth_prob = d_entropy_out[n][1][p] * d_entropy(depth_prob);
         prob = 0;
         depth_prob=0;
         // compute the gradient
