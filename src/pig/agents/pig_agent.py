@@ -62,7 +62,9 @@ class PIG_agent(nn.Module):
         self.save=config['save_model']
         self.epochs=config['epochs']
         self.representation_epochs=config['representation_epochs']
-        self.status_weight=config['status_weight']
+        self.palindrome=config['palindrome']
+        self.palindrome_weight=config['palindrome_weight']
+        self.palindrome_loss=nn.MSELoss()
         # self.log_trajectory()
         # input()
 
@@ -105,7 +107,7 @@ class PIG_agent(nn.Module):
         # train the model
         for epoch in trange(self.epochs, desc="Training the model"):
             # log the trajectory
-            if self.log_video and epoch%self.log_video_every==0:
+            if self.log_video and (epoch+1)%self.log_video_every==0:
                 self.log_trajectory()
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
@@ -114,10 +116,15 @@ class PIG_agent(nn.Module):
                 # Training the model using human data
                 # permute the data and move them to the device, enable the gradients
                 human_data=human_data.float().permute(0,1,4,2,3).to(device)
+                if self.palindrome:
+                    flipped_data=human_data.flip(1)
+                    human_data=torch.cat((human_data,flipped_data),dim=1)
                 # get the output
                 kp=self.model(human_data)
                 coords=kp[...,:2]
                 status=kp[...,2]
+                # coords.register_hook(lambda grad: print("coords grad",grad.mean()))
+                # status.register_hook(lambda grad: print("status grad",grad.mean()))
                 # generate feature maps around keypoints
                 feature_maps=self.patch_extractor(coords, human_data.shape[-2:])
                 # compute the loss
@@ -125,7 +132,10 @@ class PIG_agent(nn.Module):
                 # loss+=self.scl_loss(coords1.clone())
                 # loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
                 loss+=self.pig_loss(coords.clone(), feature_maps.clone(), status, human_data)
-                loss+=self.status_weight * status.sum(dim=-1).mean()
+                if self.palindrome:
+                    flipped_coords=coords.flip(1)
+                    loss+= self.palindrome_weight * self.palindrome_loss(coords,flipped_coords)
+                    wandb.log({'palindrome_loss': self.palindrome_loss(coords,flipped_coords).item()})
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -134,7 +144,6 @@ class PIG_agent(nn.Module):
                 self.optimizer.step()
                 # log the loss
                 wandb.log({'loss':loss.item()})
-                wandb.log({'status_loss': status.sum(dim=-1).mean().item()})
                 # # Training the model using robot data
                 # robot_data=robot_data.float().permute(0,1,4,2,3).to(device)
                 # coords2=self.model(robot_data)

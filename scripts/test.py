@@ -15,23 +15,25 @@ wandb.config={
     'height':240, # MIME 240
     'channels':3, # RGB + 3 for depth
     # parameters for agent
-    'batch_size':4,
+    'batch_size':8,
     'learning_rate':0.001,
     'num_keypoints':32,
+    'palindrome':False,
     'padding':0,
     'epochs':200,
     'log_video':True,
-    'log_video_every':50,
+    'log_video_every':20,
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
     'region_size':3,
     'bandwidth':0.001,
     'std_for_featuremap_generation':9,
-    # 'threshold_for_featuremaps':0.0001,
-    'masked_entropy_loss_weight':1000.0,
+    'masked_entropy_loss_weight':100.0,
     'overlapping_loss_weight':10.0,
-    'movement_loss_weight':0.5,
+    'movement_loss_weight':0.1,
+    'palindrome_weight':0.0,
+    'status_weight':0.3,
     # parameters for the pcl loss
     'pcl_type': 'representation', # 'histogram', 'representation', 'learning_contrastive' or 'learning_AE'
     'num_samples':8,
@@ -53,11 +55,9 @@ wandb.config={
     "noised_coords": False,
     # parameters for spatial consistency loss
     'spatial_consistency_loss_weight':1.0,
-    # status part of the loss
-    'status_weight':0.3,
 }
 
-wandb.init(project="pig_test", name="pig+pcl_coords", entity="3liyounes94", config=wandb.config,
+wandb.init(project="pig_test", name="pig+movement", entity="3liyounes94", config=wandb.config,
               # mode="disabled"
             )
 
