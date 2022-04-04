@@ -26,6 +26,7 @@ wandb.config={
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
+    'activation_score_threshold':20,
     'region_size':3,
     'bandwidth':0.001,
     'std_for_featuremap_generation':9,
@@ -60,7 +61,7 @@ wandb.config={
 }
 
 wandb.init(project="pig_test", name="pig+movement_new_distance", entity="3liyounes94", config=wandb.config,
-              mode="disabled"
+              # mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

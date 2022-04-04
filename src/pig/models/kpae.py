@@ -26,6 +26,7 @@ class Encoder(nn.Module):
         self.channels=config["channels"]
         self.batch_norm=config["batch_norm"]
         self.padding=config["padding"]
+        self.activation_score_threshold=config["activation_score_threshold"]
         self.fm_conv_1=nn.Conv2d(self.channels,self.num_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_1.weight)
         self.bn1=nn.BatchNorm2d(self.num_feature_maps*2)
@@ -140,7 +141,7 @@ class Encoder(nn.Module):
         # log the activation score as points to wandb
         wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
-        status=torch.sigmoid(1000*(activation_score-10)).unsqueeze(-1)
+        status=torch.sigmoid(1000*(activation_score-self.activation_score_threshold)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
