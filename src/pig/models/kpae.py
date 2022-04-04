@@ -35,15 +35,9 @@ class Encoder(nn.Module):
         self.fm_conv_3=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_3.weight)
         self.bn3=nn.BatchNorm2d(self.num_feature_maps*2)
-        self.fm_conv_4=nn.ConvTranspose2d(self.num_feature_maps*2,self.num_feature_maps,kernel_size=3,stride=2)
+        self.fm_conv_4=nn.ConvTranspose2d(self.num_feature_maps*2,self.num_feature_maps,kernel_size=3+2*self.padding+1,stride=2)
         torch.nn.init.normal_(self.fm_conv_4.weight)
         self.bn4=nn.BatchNorm2d(self.num_feature_maps)
-        # add another layer to get a feature map bigger than the original image
-        # the idea is to give keypoints an opportunity to go there and be inactive
-        if self.padding > 0: 
-            self.fm_conv_5=nn.ConvTranspose2d(self.num_feature_maps,self.num_feature_maps,kernel_size=self.padding*2+2,stride=1)
-            torch.nn.init.normal_(self.fm_conv_5.weight)
-            self.bn5=nn.BatchNorm2d(self.num_feature_maps)
         mean=[0.485, 0.456, 0.406]+[0.4]*(self.channels-3)
         std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
         self.normalize = transforms.Normalize(mean,std)
@@ -132,7 +126,7 @@ class Encoder(nn.Module):
         # grad mean = 6e-15
         # second deconvolution with leaky relu and batch norm
         # input channels = 2*KP, output channels = KP
-        # N * SF x KP x H x W
+        # N * SF x KP x H+padding x W+padding
         x=self.fm_conv_4(x)
         x=F.relu(x)
         if self.batch_norm:
@@ -140,17 +134,11 @@ class Encoder(nn.Module):
         # x.register_hook(lambda grad: print("layer 4 out",grad.mean()))
         # grad mean =  2.4e-22
         # x=F.leaky_relu(x)
-        # N * SF x KP x H+padding x W+padding
-        if self.padding > 0:
-            x=self.fm_conv_5(x)
-            x=F.relu(x)
-            if self.batch_norm:
-                x=self.bn5(x)
         # compute the activation_score as the maximum of feature maps
         # N * Sf x KP
         activation_score=torch.amax(x,dim=(-1,-2))
         # log the activation score as points to wandb
-        # wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
+        wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
         status=torch.sigmoid(1000*(activation_score-10)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive

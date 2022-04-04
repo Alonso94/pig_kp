@@ -73,11 +73,23 @@ class PatchInfoGainLoss(nn.Module):
         N,SF,KP,_=coords.shape
         N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
-        # distance travelled by all keypoints in each time frame
+        # # distance travelled by all keypoints in each time frame
+        # # N x SF
+        # shifted_coordinates=torch.roll(coords,1,dims=1)
+        # # shifted_coordinates.register_hook(lambda grad: print("shifted_coordinates_pig",grad.mean()))
+        # distance_travelled=torch.norm(shifted_coordinates-coords,dim=-1).sum(dim=-1)
+        # pairwise distance between all keypoints
+        # N x SF x KP x KP
+        pairwise_distances=torch.norm(coords[:,:,:,None,:]-coords[:,:,None,:,:],dim=-1)
+        # shifted pairwise distances
+        # N x SF x KP x KP
+        shifted_pairwise_distances=torch.roll(pairwise_distances,1,dims=1)
+        # the relative distance travelled for each keypoint
+        # N x SF x KP
+        relative_distance_travelled=torch.norm(shifted_pairwise_distances-pairwise_distances,dim=-1)
+        # average for each frame
         # N x SF
-        shifted_coordinates=torch.roll(coords,1,dims=1)
-        # shifted_coordinates.register_hook(lambda grad: print("shifted_coordinates_pig",grad.mean()))
-        distance_travelled=torch.norm(shifted_coordinates-coords,dim=-1).sum(dim=-1)
+        relative_distance_travelled=relative_distance_travelled.mean(dim=-1)
         # coords.register_hook(lambda grad: print("coords grad", grad.mean()))
         # feature_maps.register_hook(lambda grad: print("fm_pig",grad.mean()))
         # N x SF x H x W
@@ -116,7 +128,7 @@ class PatchInfoGainLoss(nn.Module):
         # the pig loss
         pig_loss = self.masked_entropy_loss_weight*masked_entropy_loss \
                     + self.overlapping_loss_weight*overlapping_loss \
-                    + self.movement_loss_weight*distance_travelled
+                    + self.movement_loss_weight*relative_distance_travelled
         if masked_entropy_loss.mean()<self.schedule:
             pig_loss+= self.status_weight*status.sum(dim=-1).mean()
         # mean over time
@@ -125,10 +137,11 @@ class PatchInfoGainLoss(nn.Module):
         pig_loss=pig_loss.mean()
         # pig_loss.register_hook(lambda grad: print("pig_loss",grad.mean()))
         # log to wandb
-        wandb.log({'pig_loss':pig_loss.item(),
+        if self.count%10==0:
+            wandb.log({'pig_loss':pig_loss.item(),
                 'pig/masked_entropy_percentage':masked_entropy_loss.mean().item(),
                 'pig/overlapping_loss':overlapping_loss.mean().item(),
-                'pig/movement_loss':distance_travelled.mean().item(),
+                'pig/movement_loss':relative_distance_travelled.mean().item(),
                 'pig/status_loss':status.sum(dim=2).mean().item()})
         self.count+=1
         torch.cuda.empty_cache()

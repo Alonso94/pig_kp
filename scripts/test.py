@@ -19,7 +19,7 @@ wandb.config={
     'learning_rate':0.001,
     'num_keypoints':32,
     'palindrome':False,
-    'padding':20,
+    'padding':10,
     'epochs':50,
     'log_video':True,
     'log_video_every':10,
@@ -33,7 +33,7 @@ wandb.config={
     'schedule': 0.4,
     'masked_entropy_loss_weight':100.0,
     'overlapping_loss_weight':20.0,
-    'movement_loss_weight':0.05,
+    'movement_loss_weight':0.1,
     'palindrome_weight':0.0,
     'status_weight':1.0,
     # parameters for the pcl loss
@@ -59,8 +59,8 @@ wandb.config={
     'spatial_consistency_loss_weight':1.0,
 }
 
-wandb.init(project="pig_test", name="pig+movement", entity="3liyounes94", config=wandb.config,
-              # mode="disabled"
+wandb.init(project="pig_test", name="pig+movement_new_distance", entity="3liyounes94", config=wandb.config,
+              mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

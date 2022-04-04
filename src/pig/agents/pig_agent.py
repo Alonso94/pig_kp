@@ -105,20 +105,23 @@ class PIG_agent(nn.Module):
                     feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
                     self.pcl_loss.train_representation(coords.clone(),feature_maps,human_data)
         # train the model
-        for epoch in range(self.epochs):#trange(self.epochs, desc="Training the model"):
+        # for epoch in range(self.epochs):
+        for epoch in trange(self.epochs, desc="Training the model"):
             # log the trajectory
             if self.log_video and (epoch+1)%self.log_video_every==0:
                 self.log_trajectory()
-            for sample in self.dataloader:#tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
+            # for sample in self.dataloader:
+            for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
                 human_data=sample['human']
                 robot_data=sample['robot']
                 # Training the model using human data
                 # permute the data and move them to the device, enable the gradients
                 human_data=human_data.float().permute(0,1,4,2,3).to(device)
-                if self.palindrome:
-                    flipped_data=human_data.flip(1)
-                    human_data=torch.cat((human_data,flipped_data),dim=1)
+                # with torch.autograd.profiler.profile(use_cuda=True) as prof:
+                # if self.palindrome:
+                #     flipped_data=human_data.flip(1)
+                #     human_data=torch.cat((human_data,flipped_data),dim=1)
                 # get the output
                 kp=self.model(human_data)
                 coords=kp[...,:2]
@@ -132,18 +135,19 @@ class PIG_agent(nn.Module):
                 # loss+=self.scl_loss(coords1.clone())
                 # loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
                 loss+=self.pig_loss(coords.clone(), feature_maps.clone(), status, human_data)
-                if self.palindrome:
-                    flipped_coords=coords.flip(1)
-                    loss+= self.palindrome_weight * self.palindrome_loss(coords,flipped_coords)
-                    wandb.log({'palindrome_loss': self.palindrome_loss(coords,flipped_coords).item()})
+                # if self.palindrome:
+                #     flipped_coords=coords.flip(1)
+                #     loss+= self.palindrome_weight * self.palindrome_loss(coords,flipped_coords)
+                #     wandb.log({'palindrome_loss': self.palindrome_loss(coords,flipped_coords).item()})
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
-                # input()
                 # update the parameters
                 self.optimizer.step()
                 # log the loss
-                wandb.log({'loss':loss.item()})
+                # wandb.log({'loss':loss.item()})
+                # print(prof.key_averages().table(sort_by="cuda_time_total"))
+                # input()
                 # # Training the model using robot data
                 # robot_data=robot_data.float().permute(0,1,4,2,3).to(device)
                 # coords2=self.model(robot_data)
