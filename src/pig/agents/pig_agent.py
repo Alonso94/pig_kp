@@ -105,11 +105,11 @@ class PIG_agent(nn.Module):
                     feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
                     self.pcl_loss.train_representation(coords.clone(),feature_maps,human_data)
         # train the model
-        for epoch in trange(self.epochs, desc="Training the model"):
+        for epoch in range(self.epochs):#trange(self.epochs, desc="Training the model"):
             # log the trajectory
             if self.log_video and (epoch+1)%self.log_video_every==0:
                 self.log_trajectory()
-            for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
+            for sample in self.dataloader:#tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
                 human_data=sample['human']
                 robot_data=sample['robot']

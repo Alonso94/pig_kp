@@ -152,7 +152,7 @@ class Encoder(nn.Module):
         # log the activation score as points to wandb
         # wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
-        status=torch.sigmoid(1000*(activation_score-20)).unsqueeze(-1)
+        status=torch.sigmoid(1000*(activation_score-10)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
