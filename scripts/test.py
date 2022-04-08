@@ -9,7 +9,7 @@ wandb.config={
     # parameters for dataset
     'tasks':'1,2',
     'number_of_demos':2,
-    'number_of_stacked_frames':2,
+    'number_of_stacked_frames':6,
     'with_depth':False,
     'width':320, # MIME 640 -> after crop to 320x240
     'height':240, # MIME 240
@@ -20,9 +20,9 @@ wandb.config={
     'num_keypoints':32,
     'palindrome':False,
     'padding':20,
-    'epochs':200,
+    'epochs':50,
     'log_video':True,
-    'log_video_every':20,
+    'log_video_every':10,
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
@@ -63,7 +63,7 @@ wandb.config={
 }
 
 wandb.init(project="pig_test", name="pig+movement_new_distance", entity="3liyounes94", config=wandb.config,
-              mode="disabled"
+              # mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

@@ -1,3 +1,4 @@
+from cmath import nan
 from pig.entropy_layer.entropy import Entropy
 from pig.utils.plot_entropy_histogram import *
 from pig.utils.extract_patches import PatchExtractor
@@ -104,6 +105,7 @@ class PatchInfoGainLoss(nn.Module):
         shifted_rgb_entropy=torch.roll(rgb_entropy,1,dims=1)
         joint_entropy=torch.maximum(rgb_entropy,shifted_rgb_entropy)
         conditional_entropy=joint_entropy-rgb_entropy
+        # plot_conditional_entropy(images[0],conditional_entropy[0,1],joint_entropy[0,1],rgb_entropy[0])
         # N x SF x KP
         # sum the entropy of each image
         rgb_entropy_sum=rgb_entropy.sum(dim=(-1,-2))
@@ -130,8 +132,8 @@ class PatchInfoGainLoss(nn.Module):
         masked_entropy_sum=torch.sum(masked_depth_entropy,dim=(-1,-2))
         masked_conditional_entropy_sum=torch.sum(masked_conditional_entropy,dim=(-1,-2))
         # masked_entropy_sum.register_hook(lambda grad: print("masked_entropy_sum_pig",grad.mean()))
-        masked_entropy_loss=1-masked_entropy_sum/rgb_entropy_sum
-        masked_conditional_entropy_loss=1-masked_conditional_entropy_sum/conditional_entropy_sum
+        masked_entropy_loss=1-masked_entropy_sum/(rgb_entropy_sum+1e-10)
+        masked_conditional_entropy_loss=1-masked_conditional_entropy_sum/(conditional_entropy_sum+1e-10)
         # penalize the overlapping of the patches
         # the maximum of the aggregated feature maps should as small as possible
         if masked_entropy_loss.mean()<self.schedule:
@@ -146,7 +148,7 @@ class PatchInfoGainLoss(nn.Module):
                     + self.overlapping_loss_weight*overlapping_loss
         if masked_entropy_loss.mean()<self.schedule/2:
             pig_loss+=self.movement_loss_weight*distance_travelled
-        pig_loss+= self.status_weight*status.sum(dim=-1).mean()
+            pig_loss+= self.status_weight*status.sum(dim=-1).mean()
         # mean over time
         pig_loss=pig_loss.mean(dim=-1)
         # mean over the batch

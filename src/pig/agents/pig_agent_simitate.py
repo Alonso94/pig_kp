@@ -42,7 +42,6 @@ class PIG_agent(nn.Module):
         self.log_video_every=config['log_video_every']
         self.save=config['save_model']
         self.epochs=config['epochs']
-        self.representation_epochs=config['representation_epochs']
         self.palindrome=config['palindrome']
         self.palindrome_weight=config['palindrome_weight']
         self.palindrome_loss=nn.MSELoss()

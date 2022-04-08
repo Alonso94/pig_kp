@@ -31,7 +31,7 @@ class Entropy(nn.Module):
         # the blur is average blur of size 15x15
         self.blur=nn.AvgPool2d(kernel_size=(15,15), stride=1, padding=7,ceil_mode=True, count_include_pad=True)
 
-    def forward(self, input, cvsharp,cvdivision):
+    def forward(self, input):
         # get the size of the input
         N,SF,C,H,W=input.shape
         R=self.region_size
@@ -44,7 +44,7 @@ class Entropy(nn.Module):
         # N * SF x C x H xW
         sharp=torch.clamp(2.5*input-1.2*smooth,min=0,max=255).round()
         # divide the image by the blur
-        division=torch.clamp(torch.div(sharp*255,smooth),min=0,max=255).round()
+        division=torch.clamp(torch.div(sharp*255,smooth+1e-8),min=0,max=255).round()
         # reshape the input
         # N x SF x C x H xW
         input=division.view(N,SF,C,H,W)

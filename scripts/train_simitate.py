@@ -9,7 +9,7 @@ wandb.config={
     # parameters for dataset
     'tasks':'bring,rearrange',
     'number_of_demos':4,
-    'number_of_stacked_frames':6,
+    'number_of_stacked_frames':3,
     'with_depth':False,
     'width':480, # SIMITATE 960 -> after crop to 320x240
     'height':270, # SIMITATE 540
@@ -31,8 +31,8 @@ wandb.config={
     'bandwidth':0.001,
     'penalize_background':False,
     'std_for_featuremap_generation':9,
-    'fm_threshold':0.1,
-    'schedule': 0.2,
+    'fm_threshold':0.9,
+    'schedule': 0.6,
     'masked_entropy_loss_weight':100.0,
     'conditional_entropy_loss_weight':50.0,
     'overlapping_loss_weight':10.0,
