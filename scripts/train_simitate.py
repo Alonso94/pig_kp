@@ -7,9 +7,9 @@ torch.autograd.set_detect_anomaly(True)
 
 wandb.config={
     # parameters for dataset
-    'tasks':'bring, rearrange',
+    'tasks':'bring,rearrange',
     'number_of_demos':4,
-    'number_of_stacked_frames':3,
+    'number_of_stacked_frames':6,
     'with_depth':False,
     'width':480, # SIMITATE 960 -> after crop to 320x240
     'height':270, # SIMITATE 540

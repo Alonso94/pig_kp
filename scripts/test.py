@@ -9,7 +9,7 @@ wandb.config={
     # parameters for dataset
     'tasks':'1,2',
     'number_of_demos':2,
-    'number_of_stacked_frames':6,
+    'number_of_stacked_frames':2,
     'with_depth':False,
     'width':320, # MIME 640 -> after crop to 320x240
     'height':240, # MIME 240
@@ -63,7 +63,7 @@ wandb.config={
 }
 
 wandb.init(project="pig_test", name="pig+movement_new_distance", entity="3liyounes94", config=wandb.config,
-              # mode="disabled"
+              mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

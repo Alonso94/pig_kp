@@ -143,9 +143,9 @@ class PatchInfoGainLoss(nn.Module):
         # the pig loss
         pig_loss = self.masked_entropy_loss_weight*masked_entropy_loss\
                     + self.conditional_entropy_loss_weight*masked_conditional_entropy_loss\
-                    + self.overlapping_loss_weight*overlapping_loss \
-                    + self.movement_loss_weight*distance_travelled
-        # if masked_entropy_loss.mean()<self.schedule:
+                    + self.overlapping_loss_weight*overlapping_loss
+        if masked_entropy_loss.mean()<self.schedule/2:
+            pig_loss+=self.movement_loss_weight*distance_travelled
         pig_loss+= self.status_weight*status.sum(dim=-1).mean()
         # mean over time
         pig_loss=pig_loss.mean(dim=-1)

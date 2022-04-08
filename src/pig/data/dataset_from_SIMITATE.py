@@ -84,7 +84,7 @@ class DatasetFromSIMITATE(Dataset):
         sample=self.data[idx-n_frames:idx]
         return sample
 
-    def preprocess(self,frame,count):
+    def preprocess1(self,frame):
         # # convert the frame to rgb
         # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image=frame
@@ -100,7 +100,7 @@ class DatasetFromSIMITATE(Dataset):
         # # # apply bilateral filter to the frame
         # frame=cv2.bilateralFilter(division,9,250,250)
         # frame=sharp 
-        if count==100 and self.visualize_preprocessing:
+        if self.visualize_preprocessing:
             fig,axes=plt.subplots(2,3, constrained_layout=True)
             axes[0,0].imshow(image)
             axes[0,0].set_title('input image')
@@ -113,10 +113,52 @@ class DatasetFromSIMITATE(Dataset):
             axes[1,1].imshow(sharp)
             axes[1,1].set_title('sharp')
             # convert the frame to a tensor
-            frame_t=torch.from_numpy(frame).float().to(device)
+            frame_t=torch.from_numpy(image).float().to(device)
             frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
             # pass the frame to the entropy layer
             entropy=self.entropy_layer(frame_t)
+            # show the entropy
+            axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
+            axes[1,2].set_title('entropy')
+            # remove the ticks
+            for ax in axes.flat:
+                ax.set(xticks=[],yticks=[])
+            plt.show()
+            # kill all the figures
+            plt.close('all')
+        return frame
+
+    def preprocess(self,frame,i):
+        # # convert the frame to rgb
+        # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image=frame
+        # blur the frame
+        smooth=cv2.blur(frame,(15,15))
+        # sharpen the frame
+        sharp=cv2.addWeighted(frame,2.5,smooth,-1.2,0) 
+        # divide the frame by the blurred frame
+        division=cv2.divide(sharp,smooth,scale=255)
+        frame=division
+        # # # apply bilateral filter to the frame
+        # frame=cv2.bilateralFilter(division,9,250,250)
+        # frame=sharp 
+        if i==90 and self.visualize_preprocessing:
+            fig,axes=plt.subplots(2,3, constrained_layout=True)
+            axes[0,0].imshow(image)
+            axes[0,0].set_title('input image')
+            axes[0,1].imshow(smooth)
+            axes[0,1].set_title('smooth')
+            axes[0,2].imshow(sharp)
+            axes[0,2].set_title('sharp')
+            axes[1,0].imshow(division)
+            axes[1,0].set_title('division')
+            axes[1,1].imshow(frame)
+            axes[1,1].set_title('-')
+            # convert the frame to a tensor
+            frame_t=torch.from_numpy(image).float().to(device)
+            frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
+            # pass the frame to the entropy layer
+            entropy=self.entropy_layer(frame_t,sharp,division)
             # show the entropy
             axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
             axes[1,2].set_title('entropy')
@@ -135,9 +177,7 @@ class DatasetFromSIMITATE(Dataset):
         file_names.sort()
         # create a list to store the frames
         frames=[]
-        count=0
-        for name in file_names:
-            count+=1
+        for i,name in enumerate(file_names):
             # read the frame
             frame = cv2.imread("{0}/{1}".format(path,name))
             # # center crop the frame from 640x240 to 320x240
@@ -146,7 +186,7 @@ class DatasetFromSIMITATE(Dataset):
                 # resize the frame
                 frame=cv2.resize(frame,(self.width,self.height))
             # preprocess the frame
-            frame=self.preprocess(frame, count)
+            # frame=self.preprocess(frame,i)
             frames.append(frame)
         # convert the list to a numpy array
         frames=np.array(frames)

@@ -1,3 +1,4 @@
+from builtins import print
 import os
 import numpy as np
 
@@ -27,7 +28,7 @@ class DatasetFromMIME(Dataset):
 
         self.tasks=config['tasks'].split(',')
 
-        self.visualize_preprocessing=False
+        self.visualize_preprocessing=True
 
         self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
 
@@ -98,7 +99,7 @@ class DatasetFromMIME(Dataset):
         sample={'human':human_sample,'robot':robot_sample}
         return sample
 
-    def preprocess(self,frame,i):
+    def preprocess1(self,frame,i):
         # # convert the frame to rgb
         # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image=frame
@@ -140,6 +141,63 @@ class DatasetFromMIME(Dataset):
             plt.close('all')
         return frame
 
+    def sample_video_from_data(self, n_frames):
+        # sample the index of the starting frame
+        idx=np.random.randint(0,len(self.human_data)-n_frames)
+        # find to which task the idx belongs by using the task_start_idx
+        task=np.where(self.task_start_idx<=idx)[0][-1]
+        # if the idx is less than task_start_idx[task]+n_frames then shift it
+        if idx<self.task_start_idx[task]+n_frames:
+            idx=self.task_start_idx[task]+n_frames
+        # if idx is greater than the length of the task then shift it
+        if idx>self.task_start_idx[task+1]:
+            idx=self.task_start_idx[task+1]-1
+        # The sample is n_frames frames ending at idx
+        sample=self.data[idx-n_frames:idx]
+        return sample
+
+    def preprocess(self,frame,i):
+        # # convert the frame to rgb
+        # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image=frame
+        # blur the frame
+        smooth=cv2.blur(frame,(15,15))
+        # sharpen the frame
+        sharp=cv2.addWeighted(frame,2.5,smooth,-1.2,0)
+        # divide the frame by the blurred frame
+        division=cv2.divide(sharp,smooth,scale=255)
+        frame=division
+        # # # apply bilateral filter to the frame
+        # frame=cv2.bilateralFilter(division,9,250,250)
+        # frame=sharp 
+        if i==50 and self.visualize_preprocessing:
+            fig,axes=plt.subplots(2,3, constrained_layout=True)
+            axes[0,0].imshow(image)
+            axes[0,0].set_title('input image')
+            axes[0,1].imshow(smooth)
+            axes[0,1].set_title('smooth')
+            axes[0,2].imshow(sharp)
+            axes[0,2].set_title('sharp')
+            axes[1,0].imshow(division)
+            axes[1,0].set_title('divide')
+            axes[1,1].imshow(frame)
+            axes[1,1].set_title('-')
+            # convert the frame to a tensor
+            frame_t=torch.from_numpy(image).float().to(device)
+            frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
+            # pass the frame to the entropy layer
+            entropy=self.entropy_layer(frame_t,sharp,division)
+            # show the entropy
+            axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
+            axes[1,2].set_title('entropy')
+            # remove the ticks
+            for ax in axes.flat:
+                ax.set(xticks=[],yticks=[])
+            plt.show()
+            # kill all the figures
+            plt.close('all')
+        return frame
+
     def read_frames_from_video(self,video_path, depth=False):
         # read the video
         video=cv2.VideoCapture(video_path)
@@ -156,7 +214,7 @@ class DatasetFromMIME(Dataset):
                 # resize the frame
                 frame=cv2.resize(frame,(self.width,self.height))
             # preprocess the frame
-            frame=self.preprocess(frame,i)
+            # frame=self.preprocess(frame,i)
             frames.append(frame)
         # close the video
         video.release()
