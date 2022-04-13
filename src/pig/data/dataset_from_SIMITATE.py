@@ -71,7 +71,7 @@ class DatasetFromSIMITATE(Dataset):
 
     def sample_video_from_data(self, n_frames):
         # sample the index of the starting frame
-        idx=np.random.randint(0,len(self.human_data)-n_frames)
+        idx=np.random.randint(0,len(self.data)-n_frames)
         # find to which task the idx belongs by using the task_start_idx
         task=np.where(self.task_start_idx<=idx)[0][-1]
         # if the idx is less than task_start_idx[task]+n_frames then shift it

@@ -77,8 +77,9 @@ class PIG_agent(nn.Module):
             human_data=torch.tensor(sample['human']).float().permute(0,3,1,2).to(device).unsqueeze(0)
             kp=self.model(human_data)
             coords=kp[...,:2]
-            status=kp[...,2]
-            self.visualizer.log_video(sample['human'][...,:3],coords, status,'human')
+            active_status=kp[...,2]
+            dynamic_status=kp[...,3]
+            self.visualizer.log_video(sample['human'][...,:3],coords, active_status, dynamic_status,'human')
             # robot_data=torch.tensor(sample['robot']).float().permute(0,3,1,2).to(device).unsqueeze(0)
             # coords=self.model(robot_data)
             # self.visualizer.log_video(sample['robot'][...,:3],coords,'robot')
@@ -107,9 +108,6 @@ class PIG_agent(nn.Module):
         # train the model
         # for epoch in range(self.epochs):
         for epoch in trange(self.epochs, desc="Training the model"):
-            # log the trajectory
-            if self.log_video and (epoch+1)%self.log_video_every==0:
-                self.log_trajectory()
             # for sample in self.dataloader:
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
@@ -125,7 +123,8 @@ class PIG_agent(nn.Module):
                 # get the output
                 kp=self.model(human_data)
                 coords=kp[...,:2]
-                status=kp[...,2]
+                active_status=kp[...,2]
+                dynamic_status=kp[...,3]
                 # coords.register_hook(lambda grad: print("coords grad",grad.mean()))
                 # status.register_hook(lambda grad: print("status grad",grad.mean()))
                 # generate feature maps around keypoints
@@ -134,7 +133,7 @@ class PIG_agent(nn.Module):
                 loss=0
                 # loss+=self.scl_loss(coords1.clone())
                 # loss+=self.pcl_loss(coords.clone(),feature_maps.clone(), status, human_data)
-                loss+=self.pig_loss(coords.clone(), feature_maps.clone(), status, human_data)
+                loss+=self.pig_loss(coords.clone(), feature_maps.clone(), active_status, dynamic_status, human_data)
                 # if self.palindrome:
                 #     flipped_coords=coords.flip(1)
                 #     loss+= self.palindrome_weight * self.palindrome_loss(coords,flipped_coords)
@@ -165,6 +164,9 @@ class PIG_agent(nn.Module):
                 # self.optimizer.step()
                 # # log the loss
                 # wandb.log({'loss':loss.item()})
+            # log the trajectory
+            if self.log_video and epoch%self.log_video_every==0:
+                self.log_trajectory()
             # save the model
             if self.save:
                 torch.save(self.model.state_dict(),'models/model_{0}.pt'.format(epoch))

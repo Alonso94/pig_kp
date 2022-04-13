@@ -9,7 +9,7 @@ wandb.config={
     # parameters for dataset
     'tasks':'1,2',
     'number_of_demos':2,
-    'number_of_stacked_frames':6,
+    'number_of_stacked_frames':3,
     'with_depth':False,
     'width':320, # MIME 640 -> after crop to 320x240
     'height':240, # MIME 240
@@ -27,16 +27,19 @@ wandb.config={
     'batch_norm':True,
     # parameters for the pig loss
     'activation_score_threshold':15,
+    'dynamic_score_threshold':25,
     'region_size':3,
     'bandwidth':0.001,
     'penalize_background':False,
-    'std_for_featuremap_generation':9,
+    'std_for_featuremap_generation':16,
     'fm_threshold':0.1,
-    'schedule': 0.2,
-    'masked_entropy_loss_weight':100.0,
-    'conditional_entropy_loss_weight':50.0,
-    'overlapping_loss_weight':10.0,
-    'movement_loss_weight':0.1,
+    'thresholded_fm_scale':1.3,
+    'schedule': 0.15,
+    'masked_entropy_loss_weight':150.0,
+    'conditional_entropy_loss_weight':75.0,
+    'overlapping_loss_weight':30.0,
+    'static_loss_weight':0.1,
+    'dynamic_loss_weight':5,
     'palindrome_weight':0.0,
     'status_weight':1.0,
     # parameters for the pcl loss
@@ -62,7 +65,7 @@ wandb.config={
     'spatial_consistency_loss_weight':1.0,
 }
 
-wandb.init(project="pig_test", name="pig+movement_new_distance", entity="3liyounes94", config=wandb.config,
+wandb.init(project="pig_test", name="pig+movement_new_distance", entity="irosa-ias", config=wandb.config,
               # mode="disabled"
             )
 

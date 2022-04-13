@@ -141,21 +141,6 @@ class DatasetFromMIME(Dataset):
             plt.close('all')
         return frame
 
-    def sample_video_from_data(self, n_frames):
-        # sample the index of the starting frame
-        idx=np.random.randint(0,len(self.human_data)-n_frames)
-        # find to which task the idx belongs by using the task_start_idx
-        task=np.where(self.task_start_idx<=idx)[0][-1]
-        # if the idx is less than task_start_idx[task]+n_frames then shift it
-        if idx<self.task_start_idx[task]+n_frames:
-            idx=self.task_start_idx[task]+n_frames
-        # if idx is greater than the length of the task then shift it
-        if idx>self.task_start_idx[task+1]:
-            idx=self.task_start_idx[task+1]-1
-        # The sample is n_frames frames ending at idx
-        sample=self.data[idx-n_frames:idx]
-        return sample
-
     def preprocess(self,frame,i):
         # # convert the frame to rgb
         # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

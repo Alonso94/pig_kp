@@ -27,6 +27,7 @@ class Encoder(nn.Module):
         self.batch_norm=config["batch_norm"]
         self.padding=config["padding"]
         self.activation_score_threshold=config["activation_score_threshold"]
+        self.dynamic_score_threshold=config["dynamic_score_threshold"]
         self.fm_conv_1=nn.Conv2d(self.channels,self.num_feature_maps*2,kernel_size=3,stride=2)
         torch.nn.init.normal_(self.fm_conv_1.weight)
         self.bn1=nn.BatchNorm2d(self.num_feature_maps*2)
@@ -141,7 +142,8 @@ class Encoder(nn.Module):
         # log the activation score as points to wandb
         wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
-        status=torch.sigmoid(1000*(activation_score-self.activation_score_threshold)).unsqueeze(-1)
+        active_status=torch.sigmoid(1000*(activation_score-self.activation_score_threshold)).unsqueeze(-1)
+        dynamic_status=torch.sigmoid(1000*(activation_score-self.dynamic_score_threshold)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))
@@ -152,10 +154,10 @@ class Encoder(nn.Module):
         # concatienate the order, the status and the coordinates
         # N * SF x KP x 4
         # order=self.order.repeat(N*SF,1,1).to(x.device)
-        kp=torch.cat([coords,status],dim=-1)
+        kp=torch.cat([coords,active_status,dynamic_status],dim=-1)
         # reshape the coordinates
         # N x SF x KP x 4
-        kp=kp.view(N,SF,-1,3)
+        kp=kp.view(N,SF,-1,4)
         # print(kp.shape)
         # # sort the keypoints according to their status
         # # N x SF x KP x 4

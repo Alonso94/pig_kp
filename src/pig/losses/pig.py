@@ -28,10 +28,12 @@ class PatchInfoGainLoss(nn.Module):
         self.masked_entropy_loss_weight=config['masked_entropy_loss_weight']
         self.conditional_entropy_loss_weight=config['conditional_entropy_loss_weight']
         self.overlapping_loss_weight=config['overlapping_loss_weight']
-        self.movement_loss_weight=config['movement_loss_weight']
+        self.static_loss_weight=config['static_loss_weight']
+        self.dynamic_loss_weight=config['dynamic_loss_weight']
         self.num_keypoints=config['num_keypoints']
         self.status_weight=config['status_weight']
         self.fm_threshold=config['fm_threshold']
+        self.thresholded_fm_scale=config['thresholded_fm_scale']
         self.schedule=config['schedule']
         self.penalize_background=config['penalize_background']
         # extract patches
@@ -49,7 +51,7 @@ class PatchInfoGainLoss(nn.Module):
         axes[1].imshow(masked_image.detach().cpu().numpy(),cmap='jet')
         axes[1].set_title('Masked entropy')
         plt.tight_layout()
-        # plt.show()
+        plt.show()
         # log the image to wandb
         wandb.log({'masked_image':wandb.Image(fig)})
         plt.close('all')
@@ -65,6 +67,7 @@ class PatchInfoGainLoss(nn.Module):
         # plt.show()
         fm=fm-thresh
         fm=F.sigmoid(10000*fm)
+        # fm=3*F.relu(fm)
         # # visualize the thresholded gaussian
         # plt.imshow(fm.detach().cpu().numpy(),cmap='gray')
         # plt.show()
@@ -72,7 +75,7 @@ class PatchInfoGainLoss(nn.Module):
         # plt.savefig('thresholded_gaussian.png')
         return fm
 
-    def forward(self, coords, feature_maps, status, images):
+    def forward(self, coords, feature_maps, active_status, dynamic_status, images):
         N,SF,KP,_=coords.shape
         N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
@@ -82,24 +85,18 @@ class PatchInfoGainLoss(nn.Module):
         # shifted_coordinates.register_hook(lambda grad: print("shifted_coordinates_pig",grad.mean()))
         distance_travelled=torch.norm(shifted_coordinates-coords,dim=-1)
         # mask the inactive keypoint by multiplying by status
-        distance_travelled=distance_travelled*status
+        distance_travelled=distance_travelled*active_status
+        # velocity of dynamic keypoints
+        shifted_distances=torch.roll(distance_travelled,1,dims=1)
+        velocity=torch.abs(shifted_distances-distance_travelled)
+        # mask static keypoints by multiplying by dynamic status
+        velocity=velocity*dynamic_status
+        # mask dynamic keypoints in distance travelled
+        distance_travelled=distance_travelled-distance_travelled*dynamic_status
         # sum for for each frame
         # N x SF
         distance_travelled=torch.sum(distance_travelled,dim=-1)
-        # pairwise distance between all keypoints
-        # N x SF x KP x KP
-        # pairwise_distances=torch.norm(coords[:,:,:,None,:]-coords[:,:,None,:,:],dim=-1)
-        # # shifted pairwise distances
-        # # N x SF x KP x KP
-        # shifted_pairwise_distances=torch.roll(pairwise_distances,1,dims=1)
-        # # the relative distance travelled for each keypoint
-        # # N x SF x KP
-        # relative_distance_travelled=torch.norm(shifted_pairwise_distances-pairwise_distances,dim=-1)
-        # # average for each frame
-        # # N x SF
-        # relative_distance_travelled=relative_distance_travelled.mean(dim=-1)
-        # coords.register_hook(lambda grad: print("coords grad", grad.mean()))
-        # feature_maps.register_hook(lambda grad: print("fm_pig",grad.mean()))
+        velocity=torch.sum(velocity,dim=-1)
         # N x SF x H x W
         rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
         shifted_rgb_entropy=torch.roll(rgb_entropy,1,dims=1)
@@ -112,43 +109,59 @@ class PatchInfoGainLoss(nn.Module):
         conditional_entropy_sum=conditional_entropy.sum(dim=(-1,-2))
         # penalize active keypoints in the background
         if self.penalize_background:
-            rgb_entropy-=0.1
+            rgb_entropy-=0.05
+        conditional_entropy-=1.0
         # distance_travelled.register_hook(lambda grad: print("distance_travelled",grad.mean()))
         # status.register_hook(lambda grad: print("status",grad.mean()))
         # multiply the feature maps with the status
-        status_feature_maps= status[...,None,None]*feature_maps
-        # feature_maps.register_hook(lambda grad: print("fm*status_pig",grad.mean()))
+        # threshold the feature maps
+        # N x SF x KP x H x W
+        feature_maps=feature_maps-self.fm_threshold
+        feature_maps=self.thresholded_fm_scale*F.relu(feature_maps)
+        # static and dynamic feature maps
+        static_feature_maps=active_status[...,None,None]*feature_maps
+        dynamic_feature_maps=dynamic_status[...,None,None]*feature_maps
+        # status_feature_maps.register_hook(lambda grad: print("fm*status_pig",grad.mean()))
         # generate the gaussians around keypoints
-        aggregated_feature_maps=status_feature_maps.sum(dim=2)
-        # aggregated_feature_maps.register_hook(lambda grad: print("aggregated_feature_maps_pig",grad.mean()))
-        # overlapping_loss.register_hook(lambda grad: print("overlapping_loss",grad.mean()))
-        # masked depth entropy
-        aggregated_mask=self.threshold(aggregated_feature_maps,self.fm_threshold)
-        # aggregated_mask.register_hook(lambda grad: print("aggregated_mask",grad.mean()))
-        masked_depth_entropy=rgb_entropy*aggregated_mask
-        masked_conditional_entropy=conditional_entropy*aggregated_mask
+        # N x SF x H x W
+        aggregated_static_feature_maps=static_feature_maps.sum(dim=2)
+        aggregated_static__mask=torch.clamp(aggregated_static_feature_maps,min=0,max=1)
+        aggregated_dynamic_featue_maps=dynamic_feature_maps.sum(dim=2)
+        aggregated_dynamic_mask=torch.clamp(aggregated_dynamic_featue_maps,min=0,max=1)
+        # fig=plt.figure()
+        # ax=fig.add_subplot(111, projection='3d')
+        # X = np.arange(0,aggregated_mask.shape[3],1)
+        # Y = np.arange(0,aggregated_mask.shape[2],1)
+        # X, Y = np.meshgrid(X, Y)
+        # ax.plot_surface(X,Y,aggregated_mask[0,0].detach().cpu().numpy(),cmap='jet')
+        # plt.show()
+        # plt.imshow(aggregated_mask[0,0].detach().cpu().numpy(),cmap='jet')
+        # plt.show()
+        masked_entropy=rgb_entropy*aggregated_static__mask
+        # self.log_masked_image(images[0,0],masked_entropy[0,0])
+        masked_conditional_entropy=conditional_entropy*aggregated_dynamic_mask
         # we want to encourage maximizing the entropy in the masked regions
         # at the same time encourage our keypoints to spread out
-        masked_entropy_sum=torch.sum(masked_depth_entropy,dim=(-1,-2))
+        masked_entropy_sum=torch.sum(masked_entropy,dim=(-1,-2))
         masked_conditional_entropy_sum=torch.sum(masked_conditional_entropy,dim=(-1,-2))
         # masked_entropy_sum.register_hook(lambda grad: print("masked_entropy_sum_pig",grad.mean()))
         masked_entropy_loss=1-masked_entropy_sum/(rgb_entropy_sum+1e-10)
-        masked_conditional_entropy_loss=1-masked_conditional_entropy_sum/(conditional_entropy_sum+1e-10)
+        masked_conditional_entropy_loss=torch.clamp(1-masked_conditional_entropy_sum/(conditional_entropy_sum+1e-10),min=0,max=1)
         # penalize the overlapping of the patches
         # the maximum of the aggregated feature maps should as small as possible
-        if masked_entropy_loss.mean()<self.schedule:
-            overlapping_loss = aggregated_feature_maps.amax(dim=(-1,-2))
-        else:
-            overlapping_loss = feature_maps.sum(dim=2).amax(dim=(-1,-2))
+        # if masked_entropy_loss.mean()<self.schedule:
+        #     overlapping_loss = status_feature_maps.sum(dim=2).amax(dim=(-1,-2))
+        # else:
+        overlapping_loss = feature_maps.sum(dim=2).amax(dim=(-1,-2))
         # masked_entropy_loss=rgb_entropy_sum-masked_entropy_sum
         # masked_entropy_loss.register_hook(lambda grad: print("masked_entropy_loss",grad.mean()))
         # the pig loss
         pig_loss = self.masked_entropy_loss_weight*masked_entropy_loss\
                     + self.conditional_entropy_loss_weight*masked_conditional_entropy_loss\
-                    + self.overlapping_loss_weight*overlapping_loss
-        if masked_entropy_loss.mean()<self.schedule/2:
-            pig_loss+=self.movement_loss_weight*distance_travelled
-            pig_loss+= self.status_weight*status.sum(dim=-1).mean()
+                    + self.overlapping_loss_weight*overlapping_loss \
+                    + self.static_loss_weight*distance_travelled \
+                    + self.dynamic_loss_weight*velocity
+        pig_loss+= self.status_weight*active_status.sum(dim=-1).mean()
         # mean over time
         pig_loss=pig_loss.mean(dim=-1)
         # mean over the batch
@@ -159,8 +172,10 @@ class PatchInfoGainLoss(nn.Module):
             'pig/masked_entropy_percentage':masked_entropy_loss.mean().item(),
             'pig/conditional_entropy_percentage':masked_conditional_entropy_loss.mean().item(),
             'pig/overlapping_loss':overlapping_loss.mean().item(),
-            'pig/movement_loss':distance_travelled.mean().item(),
-            'pig/status_loss':status.sum(dim=2).mean().item()})
+            'pig/distance_travelled':distance_travelled.mean().item(),
+            'pig/velocity':velocity.mean().item(),
+            'pig/static_status_loss':active_status.sum(dim=2).mean().item(),
+            'pig/dynamic_status': dynamic_status.sum(dim=2).mean().item(),})
         self.count+=1
         torch.cuda.empty_cache()
         return pig_loss

@@ -17,15 +17,16 @@ class TrajectoryVisualizer():
         # self.colors=[mcd.XKCD_COLORS[k] for k in keys]
         self.counter=0
 
-    def log_video(self,images,coords, status, label=None):
+    def log_video(self,images,coords, active_status, dynamic_status, label=None):
         start=time.time()
         # images=images.detach().cpu().permute(0,2,3,1).numpy()
         coords=coords.detach().cpu().numpy().astype(np.int32)[0]
-        status=status.detach().cpu().numpy().astype(np.int32)[0]
+        active_status=active_status.detach().cpu().numpy().astype(np.int32)[0]
+        dynamic_status=dynamic_status.detach().cpu().numpy().astype(np.int32)[0]
         fig,ax=plt.subplots(1)
         lines = []
         # green color if status is 1 else red
-        colors=['g' if s==1 else 'y' for s in status[0]]
+        colors=['g' if s==1 else 'y' for s in active_status[0]]
         for i in range(len(colors)):
             lobj = ax.plot([coords[0,i,0]],[coords[0,i,1]],lw=1,color=colors[i])[0]
             lines.append(lobj)
@@ -34,9 +35,10 @@ class TrajectoryVisualizer():
         def update(i):
             ax.imshow(images[i][:,:,::-1])
             for lnum,line in enumerate(lines):
-                colors[lnum]='g' if status[i,lnum]==1 else 'y'
+                colors[lnum]='g' if active_status[i,lnum]==1 else 'y'
+                if dynamic_status[i,lnum]==1 : colors[lnum]='b' 
                 line.set_color(colors[lnum])
-                if status[i,lnum]>0.1:
+                if active_status[i,lnum]>0.1:
                     # set data for each line separately.
                     num_points=max(i-min(trajectory_length[lnum],5),0)
                     line.set_data(coords[num_points:i,lnum,0], coords[num_points:i,lnum,1])
