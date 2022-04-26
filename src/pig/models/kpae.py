@@ -138,12 +138,13 @@ class Encoder(nn.Module):
         # x=F.leaky_relu(x)
         # compute the activation_score as the maximum of feature maps
         # N * Sf x KP
-        activation_score=torch.amax(x,dim=(-1,-2))
+        status_activation_score=torch.amax(x,dim=(-1,-2))
         # log the activation score as points to wandb
-        wandb.log({'activation_score_{0}'.format(i):activation_score[0,i].item() for i in range(self.num_feature_maps)})
+        # wandb.log({'activation_score_{0}'.format(i):status_activation_score[0,i].item() for i in range(self.num_feature_maps)})
         # threshold the activation score
-        active_status=torch.sigmoid(1000*(activation_score-self.activation_score_threshold)).unsqueeze(-1)
-        dynamic_status=torch.sigmoid(1000*(activation_score-self.dynamic_score_threshold)).unsqueeze(-1)
+        active_status=torch.sigmoid(1000*(status_activation_score-self.activation_score_threshold)).unsqueeze(-1)
+        dynamic_activation_score=torch.amax(x,dim=(-1,-2))
+        dynamic_status=torch.sigmoid(1000*(dynamic_activation_score-self.dynamic_score_threshold)).unsqueeze(-1)
         # # use softplus to constrain the output to be positive
         # x=self.softplus(x)
         # x.register_hook(lambda grad: print(grad.mean()))

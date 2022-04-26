@@ -30,13 +30,14 @@ class TrajectoryVisualizer():
         for i in range(len(colors)):
             lobj = ax.plot([coords[0,i,0]],[coords[0,i,1]],lw=1,color=colors[i])[0]
             lines.append(lobj)
+            # if dynamic_status[0,i]==1 : colors[i]='b' 
         scat = ax.scatter([coords[0,:,0]],[coords[0,:,1]], s=30, c=colors, marker='o')
         trajectory_length=np.zeros(len(colors), dtype=np.int32)
         def update(i):
             ax.imshow(images[i][:,:,::-1])
             for lnum,line in enumerate(lines):
                 colors[lnum]='g' if active_status[i,lnum]==1 else 'y'
-                if dynamic_status[i,lnum]==1 : colors[lnum]='b' 
+                # if dynamic_status[i,lnum]==1 : colors[lnum]='b' 
                 line.set_color(colors[lnum])
                 if active_status[i,lnum]>0.1:
                     # set data for each line separately.
@@ -52,10 +53,10 @@ class TrajectoryVisualizer():
             scat.set_offsets(coords[i,:,:])
             return lines, scat
         animation=FuncAnimation(fig, update, frames=len(images), interval=20, repeat=False)
-        writer=PillowWriter(fps=20)
+        writer=PillowWriter(fps=5)
         animation.save('animation_{0}_{1}.gif'.format(label,self.counter), writer=writer)
         video=wandb.Video('animation_{0}_{1}.gif'.format(label,self.counter),format="gif")
         # print('logging video finished in {0} seconds'.format(time.time()-start))
-        wandb.log({'kp_trajectories':video})
+        wandb.log({'kp_trajectories_{0}'.format(self.counter):video})
         os.remove('animation_{0}_{1}.gif'.format(label,self.counter))
         plt.close('all')

@@ -2,7 +2,7 @@ from pig.data.dataset_from_MIME import DatasetFromMIME
 from pig.models.kpae import Encoder
 from pig.utils.extract_patches import PatchExtractor
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
-from pig.losses.pig import PatchInfoGainLoss
+from pig.losses.pig_new import PatchInfoGainLoss
 from pig.losses.scl import SpatialConsistencyLoss
 
 import torch
@@ -165,7 +165,7 @@ class PIG_agent(nn.Module):
                 # # log the loss
                 # wandb.log({'loss':loss.item()})
             # log the trajectory
-            if self.log_video and epoch%self.log_video_every==0:
+            if self.log_video and (epoch+1)%self.log_video_every==0:
                 self.log_trajectory()
             # save the model
             if self.save:

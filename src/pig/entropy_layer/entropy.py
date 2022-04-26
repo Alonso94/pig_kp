@@ -29,7 +29,7 @@ class Entropy(nn.Module):
         self.region_size=region_size
         self.bandwidth=bandwidth
         # the blur is average blur of size 15x15
-        self.blur=nn.AvgPool2d(kernel_size=(9,9), stride=1, padding=4,ceil_mode=True, count_include_pad=True)
+        self.blur=nn.AvgPool2d(kernel_size=(15,15), stride=1, padding=7,ceil_mode=True, count_include_pad=True)
 
     def forward(self, input):
         # get the size of the input
@@ -38,6 +38,9 @@ class Entropy(nn.Module):
         # reshape the input to have a have a batch of images
         # N * SF x C x H xW
         input=input.view(-1,C,H,W)
+        # fig,axes=plt.subplots(2,3, constrained_layout=True)
+        # axes[0,0].imshow(input[0].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
+        # axes[0,0].set_title('input image')
         # blur the image
         smooth=self.blur(input).round()
         # sharp the image by add weighted sum of the blurred image
@@ -73,4 +76,19 @@ class Entropy(nn.Module):
         col_pad=torch.zeros(N*SF,out_channels,int(R/2),W).to(input.device)
         output=torch.cat([col_pad, output,col_pad], dim=2)
         output=output.view(N,SF,out_channels,H,W)
+        # axes[0,1].imshow(smooth[0].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
+        # axes[0,1].set_title('smooth image')
+        # axes[0,2].imshow(sharp[0].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
+        # axes[0,2].set_title('sharp')
+        # axes[1,0].imshow(division[0].detach().cpu().permute(1,2,0).numpy().astype(np.uint8)[:,:,::-1])
+        # axes[1,0].set_title('divide')
+        # # show the entropy
+        # axes[1,2].imshow(output[0,0,0].detach().cpu().numpy(),cmap='jet')
+        # axes[1,2].set_title('entropy')
+        # # remove the ticks
+        # for ax in axes.flat:
+        #     ax.set(xticks=[],yticks=[])
+        # plt.show()
+        # # kill all the figures
+        # plt.close('all')
         return output
