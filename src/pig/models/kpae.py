@@ -44,10 +44,6 @@ class Encoder(nn.Module):
         std=[0.229, 0.224, 0.225]+[0.225]*(self.channels-3)
         self.normalize = transforms.Normalize(mean,std)
         self.count=0
-        # positional encoding for the keypoints
-        order=torch.arange(self.num_feature_maps).to(device)
-        self.order=order.view(1,-1,1)
-    
 
     def spatial_soft_argmax(self,x):
         N,KP,H,W=x.shape

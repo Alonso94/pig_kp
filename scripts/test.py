@@ -7,8 +7,8 @@ torch.autograd.set_detect_anomaly(True)
 
 wandb.config={
     # parameters for dataset
-    'tasks':'1,2,3,4',
-    'number_of_demos':10,
+    'tasks':'1,2',
+    'number_of_demos':2,
     'number_of_stacked_frames':3,
     'with_depth':False,
     'width':320, # MIME 640 -> after crop to 320x240
@@ -22,7 +22,7 @@ wandb.config={
     'padding':20,
     'epochs':50,
     'log_video':True,
-    'log_video_every':5,
+    'log_video_every':10,
     'save_model':False,
     'batch_norm':True,
     # parameters for the pig loss
@@ -35,18 +35,21 @@ wandb.config={
     'fm_threshold':0.1,
     'thresholded_fm_scale':1.3,
     'schedule': 0.1,
-    'masked_entropy_loss_weight':10.0,
-    'conditional_entropy_loss_weight':15.0,
-    'active_overlapping_weight':20.0,
+    'masked_entropy_loss_weight':100.0,
+    'conditional_entropy_loss_weight':150.0,
+    'active_overlapping_weight':30.0,
+    'dynamic_overlapping_weight':10.0,
+    'static_movement_loss_weight': 1.0,
+    'status_weight':0.5,
+    'mode_switching_weight':8.0,
+    'activation_loss_weight':0.0,
+    ## additional parameters
     'inactive_overlapping_weight':10.0,
-    'dynamic_overlapping_weight':8.0,
     'static_overlapping_weight':10.0,
-    'static_movement_loss_weight': 10.0,
-    'dynamic_movement_loss_weight': 5.0,
+    'dynamic_movement_loss_weight': 0.1,
     'margin':10.0,
     'contrastive_loss_weight':5.0,
     'palindrome_weight':0.0,
-    'status_weight':8.0,
     'dynamic_status_weight':1.0,
     'patches_weight': 0.0,
     'acceleration_weight': 1.0,
