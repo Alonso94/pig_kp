@@ -173,8 +173,8 @@ class Encoder(nn.Module):
         # grad mean = 2.3e-11
         # N * SF x KP
         # coord=spatial_soft_argmax2d(x,normalized_coordinates=True)
-        # if self.count%100==0:
-        #     self.log_feature_maps(x)
+        if self.count%500==0:
+            self.log_feature_maps(x)
         self.count+=1
         return kp
 

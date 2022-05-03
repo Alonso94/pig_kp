@@ -2,7 +2,7 @@ from pig.data.dataset_from_SIMITATE import DatasetFromSIMITATE
 from pig.models.kpae import Encoder
 from pig.utils.extract_patches import PatchExtractor
 from pig.utils.trajectory_visualization import TrajectoryVisualizer
-from pig.losses.pig import PatchInfoGainLoss
+from pig.losses.pig_new import PatchInfoGainLoss
 
 import torch
 import torch.nn as nn
@@ -33,7 +33,7 @@ class PIG_agent(nn.Module):
         # initialize the pig loss
         self.pig_loss=PatchInfoGainLoss(config)
         # initialize the patch extractor
-        self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation']).to(device)
+        self.patch_extractor=PatchExtractor(config).to(device)
         # initialize the wandb
         wandb.watch(self.model,log_freq=1000)
         # initialize the trajectory visualizer
@@ -43,7 +43,6 @@ class PIG_agent(nn.Module):
         self.save=config['save_model']
         self.epochs=config['epochs']
         self.palindrome=config['palindrome']
-        self.palindrome_weight=config['palindrome_weight']
         self.palindrome_loss=nn.MSELoss()
         # self.log_trajectory()
         # input()
@@ -54,20 +53,18 @@ class PIG_agent(nn.Module):
         # freeze the encoder
         self.model.eval()
         with torch.no_grad():
-            human_data=torch.tensor(sample).float().permute(0,3,1,2).to(device).unsqueeze(0)
-            kp=self.model(human_data)
+            data=torch.tensor(sample).float().permute(0,3,1,2).to(device).unsqueeze(0)
+            kp=self.model(data)
             coords=kp[...,:2]
-            status=kp[...,2]
-            self.visualizer.log_video(sample[...,:3],coords, status)
+            active_status=kp[...,2]
+            dynamic_status=kp[...,3]
+            self.visualizer.log_video(sample[...,:3],coords, active_status, dynamic_status)
         self.model.train()
 
     def train(self):
         # train the model
         # for epoch in range(self.epochs):
         for epoch in trange(self.epochs, desc="Training the model"):
-            # log the trajectory
-            if self.log_video and (epoch+1)%self.log_video_every==0:
-                self.log_trajectory()
             # for sample in self.dataloader:
             for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # Training the model using human data
@@ -77,18 +74,22 @@ class PIG_agent(nn.Module):
                 # get the output
                 kp=self.model(data)
                 coords=kp[...,:2]
-                status=kp[...,2]
+                active_status=kp[...,2]
+                dynamic_status=kp[...,3]
                 # generate feature maps around keypoints
                 feature_maps=self.patch_extractor(coords, data.shape[-2:])
                 # compute the loss
                 loss=0
-                loss+=self.pig_loss(coords.clone(), feature_maps.clone(), status, data)
+                loss+=self.pig_loss(coords.clone(), feature_maps.clone(), active_status, dynamic_status, data)
                 # compute the gradients
                 self.optimizer.zero_grad()
                 loss.backward()
                 # update the parameters
                 self.optimizer.step()
                 # print(prof.key_averages().table(sort_by="cuda_time_total"))
+            # log the trajectory
+            if self.log_video and (epoch+1)%self.log_video_every==0:
+                self.log_trajectory()
             # save the model
             if self.save:
                 torch.save(self.model.state_dict(),'models/model_{0}.pt'.format(epoch))

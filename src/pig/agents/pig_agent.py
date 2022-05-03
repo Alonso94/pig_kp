@@ -52,7 +52,7 @@ class PIG_agent(nn.Module):
         # initialize the spatial consistency loss
         self.scl_loss=SpatialConsistencyLoss(config)
         # initialize the patch extractor
-        self.patch_extractor=PatchExtractor(config, std=config['std_for_featuremap_generation']).to(device)
+        self.patch_extractor=PatchExtractor(config).to(device)
         # initialize the wandb
         wandb.watch(self.model,log_freq=1000)
         # initialize the trajectory visualizer
@@ -106,10 +106,10 @@ class PIG_agent(nn.Module):
                     feature_maps=self.patch_extractor(coords,human_data.shape[-2:])
                     self.pcl_loss.train_representation(coords.clone(),feature_maps,human_data)
         # train the model
-        # for epoch in range(self.epochs):
-        for epoch in trange(self.epochs, desc="Training the model"):
-            # for sample in self.dataloader:
-            for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
+        for epoch in range(self.epochs):
+        # for epoch in trange(self.epochs, desc="Training the model"):
+            for sample in self.dataloader:
+            # for sample in tqdm(self.dataloader,desc='Epoch {0}'.format(epoch), leave=False):
                 # get the data
                 human_data=sample['human']
                 robot_data=sample['robot']
