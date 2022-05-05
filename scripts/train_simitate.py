@@ -6,6 +6,7 @@ import torch
 torch.autograd.set_detect_anomaly(True)
 
 wandb.config={
+    'model_name':'miel_simitate_full_2tasks_4train_2eval',
     # parameters for dataset
     'tasks':'bring,rearrange',
     'number_of_demos':4,
@@ -17,9 +18,9 @@ wandb.config={
     # parameters for agent
     'batch_size':4,
     'learning_rate':0.001,
-    'num_keypoints':25,
+    'num_keypoints':50,
     'palindrome':False,
-    'padding':20,
+    'padding':0,
     'epochs':50,
     'log_video':True,
     'log_video_every':5,
@@ -40,14 +41,14 @@ wandb.config={
     'active_overlapping_weight':1.5,
     'dynamic_overlapping_weight':0.8,
     'static_movement_loss_weight': 0.8,
-    'dynamic_movement_loss_weight': 0.3,
+    'dynamic_movement_loss_weight': 0.5,
     'status_weight':0.4,
     'mode_switching_weight':0.0,
     'activation_loss_weight':0.0,
 }
 
-wandb.init(project="pig_simitatae", name="pig_simitate", entity="3liyounes94", config=wandb.config,
-              # mode="disabled"
+wandb.init(project="pig_simitatae", name="pig_simitate", entity="irosa-ias", config=wandb.config,
+              mode="disabled"
             )
 
 pig=PIG_agent(wandb.config)

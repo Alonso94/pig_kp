@@ -28,7 +28,7 @@ class PIG_agent(nn.Module):
         # initialize the dataloaer
         self.dataloader=DataLoader(self.dataset,batch_size=config['batch_size'],shuffle=True)
         # initialize the model
-        self.model=Encoder(config).to(device)
+        self.model=Encoder(config, self.dataset.stats).to(device)
         # initialize the optimizer
         self.optimizer=torch.optim.Adam(self.model.parameters(),lr=config['learning_rate'])
         # initialize the pig loss

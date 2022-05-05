@@ -3,6 +3,8 @@ SIMITATE/
 runs/
 datasets/
 wandb/
+videos/
+models/
 
 .vscode/
 build/

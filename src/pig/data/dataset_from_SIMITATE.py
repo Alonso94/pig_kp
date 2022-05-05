@@ -69,19 +69,13 @@ class DatasetFromSIMITATE(Dataset):
         cv2.imshow('sample',frames)
         cv2.waitKey(0)
 
-    def sample_video_from_data(self, n_frames):
+    def sample_video_from_data(self):
         # sample the index of the starting frame
-        idx=np.random.randint(0,len(self.data)-n_frames)
-        # find to which task the idx belongs by using the task_start_idx
-        task=np.where(self.task_start_idx<=idx)[0][-1]
-        # if the idx is less than task_start_idx[task]+n_frames then shift it
-        if idx<self.task_start_idx[task]+n_frames:
-            idx=self.task_start_idx[task]+n_frames
-        # if idx is greater than the length of the task then shift it
-        if idx>self.task_start_idx[task+1]:
-            idx=self.task_start_idx[task+1]-1
+        task_idx=np.random.randint(0,len(self.task_start_idx)-1)
+        start_idx=self.task_start_idx[task_idx]
+        end_idx=self.task_start_idx[task_idx+1]
         # The sample is n_frames frames ending at idx
-        sample=self.data[idx-n_frames:idx]
+        sample=self.data[start_idx:end_idx]
         return sample
 
     def preprocess1(self,frame):

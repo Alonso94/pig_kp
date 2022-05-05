@@ -27,15 +27,12 @@ class PatchInfoGainLoss(nn.Module):
         self.masked_entropy_loss_weight=config['masked_entropy_loss_weight']
         self.conditional_entropy_loss_weight=config['conditional_entropy_loss_weight']
         self.active_overlapping_weight=config['active_overlapping_weight']
+        self.inactive_overlapping_weight=config['inactive_overlapping_weight']
         self.dynamic_overlapping_weight=config['dynamic_overlapping_weight']
-        self.mode_switching_weight=config['mode_switching_weight']
-        self.activation_loss_weight=config['activation_loss_weight']
         self.static_movement_loss_weight=config['static_movement_loss_weight']
         self.dynamic_movement_loss_weight=config['dynamic_movement_loss_weight']
         self.num_keypoints=config['num_keypoints']
         self.status_weight=config['status_weight']
-        self.schedule=config['schedule']
-        self.penalize_background=config['penalize_background']
         self.count=0
 
     def log_masked_image(self, image, masked_image):
@@ -62,7 +59,7 @@ class PatchInfoGainLoss(nn.Module):
         # plt.show()
         return fm
 
-    def forward(self, coords, feature_maps, active_status, dynamic_status, images):
+    def forward(self, coords, feature_maps, active_status, images):
         N,SF,KP,_=coords.shape
         N,SF,KP,H,W=feature_maps.shape
         N,SF,C,H,W=images.shape
@@ -90,8 +87,6 @@ class PatchInfoGainLoss(nn.Module):
         # sum for each keypoint
         # N x KP
         movement=torch.sum(movement,dim=1)
-        # # consider only active keypoints
-        # movement = movement * active_status
         # N x SF x H x W
         rgb_entropy=self.entropy_layer(images[:,:,:3])[:,:,0]
         shifted_rgb_entropy=torch.roll(rgb_entropy,1,dims=1)
@@ -103,13 +98,6 @@ class PatchInfoGainLoss(nn.Module):
         # N x SF
         rgb_entropy_sum=rgb_entropy.sum(dim=(-1,-2))
         conditional_entropy_sum=conditional_entropy.sum(dim=(-1,-2))
-        # # activate keypoints according to the entropy sum
-        # # N x SF
-        # shifted_rgb_entropy_sum=torch.roll(rgb_entropy_sum,1,dims=1)
-        # entropy_diff=(rgb_entropy_sum-shifted_rgb_entropy_sum)/500
-        # shifted_status=torch.roll(active_status,1,dims=1)
-        # status_diff=active_status.sum(dim=-1)-shifted_status.sum(dim=-1)
-        # activation_loss=torch.abs(entropy_diff-status_diff)
         # multiply the feature maps with the status
         # N x SF x KP x H x W
         active_feature_maps=active_status[...,None,None]*feature_maps
@@ -121,38 +109,24 @@ class PatchInfoGainLoss(nn.Module):
         # N x SF x KP
         max_conditional_entropy=torch.amax(masked_fm_conditional_entropy,dim=(-1,-2))
         # movement status
-        # get 0 if max conditional entropy is higher than 1 (there is movement)
-        # and 1 otherwise (static)
+        # get 1 if max conditional entropy is higher than 1 (there is movement)
+        # and 0 otherwise (static)
         # N x SF x KP
-        movement_status=torch.sigmoid(1000*(1-max_conditional_entropy))
+        movement_status=torch.sigmoid(1000*(max_conditional_entropy-1))
         # multiply the drop indices for each keypoint
         # N x KP
         general_movement_status=torch.prod(movement_status,dim=1)
-        active_movement=movement*torch.prod(active_status,dim=1)
-        # multiply th movement staus with the movement
-        # to drop the dynamic keypoints
-        # N x KP
-        static_movement = movement * general_movement_status
-        dynamic_movement=active_movement-static_movement
+        general_active_status=torch.prod(active_status,dim=1)
+        # the dynamic movement 
+        # drop the keypoint if it is not moving
+        dynamic_movement= movement * general_movement_status
+        # the static movement
+        # drop the keypoint if it is not active or if it is moving
+        static_movement = ( movement - dynamic_movement ) * general_active_status
         # mean over the keypoints
         # N 
-        static_movement_loss=torch.mean(static_movement,dim=-1)
+        static_movement_loss=torch.max(static_movement,dim=-1)
         dynamic_movement_loss=torch.mean(dynamic_movement,dim=-1)
-        # # discourage mode switching
-        # # we want to minimize the points that track the movement
-        # # this happens by penalizing the switch of the mode
-        # # N x SF x KP
-        # shifted_movement_status=torch.roll(movement_status,1,dims=1)
-        # # xor the movement status
-        # # N x SF x KP
-        # mode_switch_status=torch.abs(movement_status-shifted_movement_status)
-        # # sum the movement status over time, then clamp the sum to 1
-        # # N x KP
-        # # mode_switching_loss= torch.clamp(torch.sum(1-movement_status, dim=1),max=1)
-        # mode_switching_loss=torch.sum(mode_switch_status,dim=1)
-        # # mean over all the keypoints
-        # # N
-        # mode_switching_loss=torch.sum(mode_switching_loss,dim=-1)
         # aggregate feature maps of all keypoints
         # N x SF x H x W
         aggregated_active_feature_maps=active_feature_maps.sum(dim=2)
@@ -161,26 +135,8 @@ class PatchInfoGainLoss(nn.Module):
         # mask the entropy
         # N x SF x H x W
         masked_entropy=rgb_entropy*aggregated_active_mask
-        if self.count%500==0:
-            self.log_masked_image(images[0,0],masked_entropy[0,0])
-        # # visualize the process
-        # fig,axes=plt.subplots(1,3, constrained_layout=True, figsize=(20,7))
-        # fig.tight_layout()
-        # plt.subplots_adjust(wspace=0.2)
-        # fig.suptitle('Masked Entropy', fontsize=5)
-        # axes[0].imshow(rgb_entropy[0,0].detach().cpu().numpy(), cmap='jet')
-        # axes[0].set_title('RGB Entropy', fontsize=5)
-        # axes[1].imshow(aggregated_active_mask[0,0].detach().cpu().numpy(), cmap='gray')
-        # axes[1].set_title('Aggregated mask', fontsize=5)
-        # axes[2].imshow(masked_entropy[0,0].detach().cpu().numpy(), cmap='jet')
-        # axes[2].set_title('Masked entropy', fontsize=5)
-        # # remove the ticks
-        # for ax in axes.flat:
-        #     ax.axis("off")
-        # plt.show()
-        # # kill all the figures
-        # plt.close('all')
-        # input('Press Enter to continue...')
+        # if self.count%100==0:
+        #     self.log_masked_image(images[0,0],masked_entropy[0,0])
         masked_conditional_entropy= conditional_entropy*aggregated_active_mask
         # we want to encourage maximizing the entropy in the masked regions
         # at the same time encourage our keypoints to spread out
@@ -196,11 +152,14 @@ class PatchInfoGainLoss(nn.Module):
         # penalize the overlapping of the patches
         # we drop the dynamic feature maps
         # N x SF x KP x H x W
-        drop_moving_feature_maps = feature_maps * movement_status[:,:,:,None,None]
+        drop_moving_feature_maps = feature_maps * (1-movement_status)[:,:,:,None,None]
         dynamic_feature_maps = feature_maps - drop_moving_feature_maps
         # the maximum of the aggregated feature maps should as small as possible
         # N x SF
         overlapping_loss = drop_moving_feature_maps.sum(dim=2).amax(dim=(-1,-2))
+        inactive_feature_maps = feature_maps * (1-active_status)[:,:,:,None,None]
+        inactive_feature_maps_sum = inactive_feature_maps.sum(dim=2)
+        inactive_overlapping_loss = inactive_feature_maps_sum.amax(dim=(-1,-2))
         # # plot the fm as 3d surface
         # # surface=drop_moving_feature_maps.sum(dim=2)[0,0]
         # surface=feature_maps[0,0,0]
@@ -222,6 +181,7 @@ class PatchInfoGainLoss(nn.Module):
         pig_loss = self.masked_entropy_loss_weight*masked_entropy_loss\
                     + self.conditional_entropy_loss_weight*masked_conditional_entropy_loss\
                     + self.active_overlapping_weight*overlapping_loss \
+                    + self.inactive_overlapping_weight*inactive_overlapping_loss \
                     + self.dynamic_overlapping_weight*dynamic_overlapping_loss \
                     + self.status_weight*status_loss  
         # if masked_entropy_loss.max()<self.schedule:
@@ -241,6 +201,7 @@ class PatchInfoGainLoss(nn.Module):
             'pig/masked_entropy_percentage':masked_entropy_loss.mean().item(),
             'pig/conditional_entropy_percentage':masked_conditional_entropy_loss.mean().item(),
             'pig/overlapping_loss':overlapping_loss.mean().item(),
+            'pig/inactive_overlapping_loss':inactive_overlapping_loss.mean().item(),
             'pig/dynamic_overlapping_loss':dynamic_overlapping_loss.mean().item(),
             'pig/active_status_loss':status_loss.mean().item(),
             'pig/static_movement_loss':static_movement_loss.mean().item(),

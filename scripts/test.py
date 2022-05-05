@@ -1,4 +1,4 @@
-from pig.agents.pig_agent import PIG_agent
+from pig.agents.pig_agent_mime import PIG_agent
 
 import wandb
 
@@ -7,13 +7,14 @@ torch.autograd.set_detect_anomaly(True)
 
 wandb.config={
     # parameters for dataset
-    'tasks':'1,2,3,4',
-    'number_of_demos':10,
+    'tasks':'1,2',
+    'training_demos':2,
+    'evaluation_demos':2,
     'number_of_stacked_frames':3,
     'with_depth':False,
     'width':320, # MIME 640 -> after crop to 320x240
     'height':240, # MIME 240
-    'channels':3, # RGB + 3 for depth
+    'channels':3, # RGB
     # parameters for agent
     'batch_size':4,
     'learning_rate':0.001,
@@ -76,7 +77,7 @@ wandb.config={
     'spatial_consistency_loss_weight':1.0,
 }
 
-wandb.init(project="pig_test", name="pig+movement_new_distance", entity="irosa-ias", config=wandb.config,
+wandb.init(project="MIEL", name="MIEL", entity="irosa-ias", config=wandb.config,
               # mode="disabled"
             )
 

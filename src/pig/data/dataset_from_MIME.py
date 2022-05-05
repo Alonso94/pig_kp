@@ -14,37 +14,31 @@ import matplotlib.pyplot as plt
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 class DatasetFromMIME(Dataset):
-    def __init__(self,config, demonstrator='human'):
+    def __init__(self,config):
         super(DatasetFromMIME,self).__init__()
-        self.demonstrator=demonstrator.lower()
 
         self.width = config['width']
         self.height = config['height']
 
-        self.number_of_demos=config['number_of_demos']
+        self.training_demos=config['training_demos']
         self.number_of_stacked_frames=config['number_of_stacked_frames']
-
-        self.with_depth=config['with_depth']
+        self.evaluation_demos=config['evaluation_demos']
 
         self.tasks=config['tasks'].split(',')
 
-        self.visualize_preprocessing=True
-
-        self.entropy_layer=Entropy(config['region_size'],config['bandwidth']).to(device)
-
         # load the dataset if it's already been created
-        data_path='datasets/MIME_dataset_{0}x{1}_{2}tasks_{3}demos_{4}frames_depth_{5}.pt'.format(self.width,self.height,len(self.tasks), self.number_of_demos,self.number_of_stacked_frames, self.with_depth)
+        data_path='datasets/MIME_dataset_{0}x{1}_{2}tasks_{3}training_{4}validation_{5}frames.pt'.format(self.width,self.height,len(self.tasks), self.training_demos, self.evaluation_demos,self.number_of_stacked_frames)
         if os.path.exists(data_path):
             print('Loading dataset from',data_path)
             d = torch.load(data_path)
-            self.human_data=d.human_data
-            self.robot_data=d.robot_data
-            self.task_start_idx=d.task_start_idx
+            self.data=d.data
+            self.demo_start_idx=d.demo_start_idx
+            self.stats=d.stats
         else:
             print('Creating dataset from data')
-            self.human_data=[]
-            self.robot_data=[]
-            self.task_start_idx=[0]
+            self.data=[]
+            self.demo_start_idx=[0]
+            self.stats=[]
             self.read_frames()
             # create a folder to store the dataset
             os.makedirs('datasets',exist_ok=True)
@@ -52,28 +46,22 @@ class DatasetFromMIME(Dataset):
 
     def __len__(self):
         # the length is the last element of the task_start_idx list
-        return self.task_start_idx[-1]
+        return self.demo_start_idx[-self.evaluation_demos]
 
     def __getitem__(self, idx):
         # find to which task the idx belongs by using the task_start_idx
-        task=np.where(self.task_start_idx<=idx)[0][-1]
+        task=np.where(self.demo_start_idx<=idx)[0][-1]
         # if the idx is less than task_start_idx[task]+self.number_of_stacked_frames then shift it
-        if idx<self.task_start_idx[task]+self.number_of_stacked_frames:
-            idx=self.task_start_idx[task]+self.number_of_stacked_frames
+        if idx<self.demo_start_idx[task]+self.number_of_stacked_frames:
+            idx=self.demo_start_idx[task]+self.number_of_stacked_frames
         # The sample is number_of_stacked_frames frames ending at idx
-        human_sample=self.human_data[idx-self.number_of_stacked_frames:idx]
-        robot_sample=self.robot_data[idx-self.number_of_stacked_frames:idx]
-        # form the sample
-        sample={'human':human_sample,'robot':robot_sample}
-        return sample
+        samlpe=self.data[idx-self.number_of_stacked_frames:idx]
+        return samlpe
 
     def show_sample(self,idx):
         sample=self.__getitem__(idx)
         # stack the frames of the human and robot
-        human_frames=np.concatenate(sample['human'], axis=0)
-        robot_frames=np.concatenate(sample['robot'], axis=0)
-        # stack them to one image, two rows
-        frames=np.concatenate((human_frames,robot_frames),axis=1)
+        frames=np.concatenate(sample, axis=0)
         # use RGB to show the frames
         frames=frames[:,:,:3].astype(np.uint8)
         # frames=cv2.cvtColor(frames, cv2.COLOR_RGB2BGR)
@@ -81,107 +69,17 @@ class DatasetFromMIME(Dataset):
         cv2.imshow('sample',frames)
         cv2.waitKey(0)
 
-    def sample_video_from_data(self, n_frames):
+    def sample_video_from_data(self, task_idx=None):
         # sample the index of the starting frame
-        idx=np.random.randint(0,len(self.human_data)-n_frames)
-        # find to which task the idx belongs by using the task_start_idx
-        task=np.where(self.task_start_idx<=idx)[0][-1]
-        # if the idx is less than task_start_idx[task]+n_frames then shift it
-        if idx<self.task_start_idx[task]+n_frames:
-            idx=self.task_start_idx[task]+n_frames
-        # if idx is greater than the length of the task then shift it
-        if idx>self.task_start_idx[task+1]:
-            idx=self.task_start_idx[task+1]-1
+        if task_idx is None:
+            task_idx=np.random.randint(0,self.training_demos+self.evaluation_demos-1)
+        else:
+            task_idx=task_idx%(self.training_demos+self.evaluation_demos)
+        start_idx=self.demo_start_idx[task_idx]
+        end_idx=self.demo_start_idx[task_idx+1]
         # The sample is n_frames frames ending at idx
-        human_sample=self.human_data[idx-n_frames:idx]
-        robot_sample=self.robot_data[idx-n_frames:idx]
-        # form the sample
-        sample={'human':human_sample,'robot':robot_sample}
+        sample=self.data[start_idx:end_idx]
         return sample
-
-    def preprocess1(self,frame,i):
-        # # convert the frame to rgb
-        # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image=frame
-        # sharpen the frame
-        sharp=cv2.addWeighted(frame,2.5,cv2.GaussianBlur(frame,(0,0),49),-0.5,0) 
-        # blur the frame
-        smooth=cv2.blur(sharp,(250,250))
-        # divide the frame by the blurred frame
-        division=cv2.divide(sharp,smooth,scale=255)
-        frame=division
-        # # # apply bilateral filter to the frame
-        # frame=cv2.bilateralFilter(division,9,250,250)
-        # frame=sharp 
-        if i==90 and self.visualize_preprocessing:
-            fig,axes=plt.subplots(2,3, constrained_layout=True)
-            axes[0,0].imshow(image)
-            axes[0,0].set_title('input image')
-            axes[0,1].imshow(sharp)
-            axes[0,1].set_title('sharpened image')
-            axes[0,2].imshow(smooth)
-            axes[0,2].set_title('blur')
-            axes[1,0].imshow(division)
-            axes[1,0].set_title('divide')
-            axes[1,1].imshow(frame)
-            axes[1,1].set_title('-')
-            # convert the frame to a tensor
-            frame_t=torch.from_numpy(frame).float().to(device)
-            frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
-            # pass the frame to the entropy layer
-            entropy=self.entropy_layer(frame_t)
-            # show the entropy
-            axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
-            axes[1,2].set_title('entropy')
-            # remove the ticks
-            for ax in axes.flat:
-                ax.set(xticks=[],yticks=[])
-            plt.show()
-            # kill all the figures
-            plt.close('all')
-        return frame
-
-    def preprocess(self,frame,i):
-        # # convert the frame to rgb
-        # frame=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image=frame
-        # blur the frame
-        smooth=cv2.blur(frame,(15,15))
-        # sharpen the frame
-        sharp=cv2.addWeighted(frame,2.5,smooth,-1.2,0)
-        # divide the frame by the blurred frame
-        division=cv2.divide(sharp,smooth,scale=255)
-        frame=division
-        # # # apply bilateral filter to the frame
-        # frame=cv2.bilateralFilter(division,9,250,250)
-        # frame=sharp 
-        if i==50 and self.visualize_preprocessing:
-            fig,axes=plt.subplots(2,3, constrained_layout=True)
-            axes[0,0].imshow(image)
-            axes[0,0].set_title('input image')
-            axes[0,1].imshow(smooth)
-            axes[0,1].set_title('smooth')
-            axes[0,2].imshow(sharp)
-            axes[0,2].set_title('sharp')
-            axes[1,0].imshow(division)
-            axes[1,0].set_title('divide')
-            axes[1,1].imshow(frame)
-            axes[1,1].set_title('-')
-            # convert the frame to a tensor
-            frame_t=torch.from_numpy(image).float().to(device)
-            frame_t=frame_t[None,None,:,:,:].permute(0,1,4,2,3)
-            # pass the frame to the entropy layer
-            entropy=self.entropy_layer(frame_t,sharp,division)
-            # show the entropy
-            axes[1,2].imshow(entropy[0,0,0].detach().cpu().numpy(),cmap='jet')
-            axes[1,2].set_title('entropy')
-            # remove the ticks
-            for ax in axes.flat:
-                ax.set(xticks=[],yticks=[])
-            plt.show()
-            # kill all the figures
-            plt.close('all')
-        return frame
 
     def read_frames_from_video(self,video_path, depth=False):
         # read the video
@@ -198,8 +96,6 @@ class DatasetFromMIME(Dataset):
             if self.width!=None and self.height!=None:
                 # resize the frame
                 frame=cv2.resize(frame,(self.width,self.height))
-            # preprocess the frame
-            # frame=self.preprocess(frame,i)
             frames.append(frame)
         # close the video
         video.release()
@@ -213,50 +109,42 @@ class DatasetFromMIME(Dataset):
         for task in self.tasks:
             # list of the demos for this task
             demos=os.listdir('MIME/{0}'.format(task))
-            # iterate over a number of demos from this task
-            for demo in demos[:self.number_of_demos]:
+            # iterate over training demos from this task
+            for i in range(self.training_demos):
+                demo=demos[i]
                 # list of the videos for this demo
                 videos=os.listdir('MIME/{0}/{1}'.format(task,demo))
-                # concatenate the videos whose name starts with 'hd' and 'rd'
-                human_videos=sorted([video for video in videos if video.startswith('hd')])
-                robot_videos=sorted([video for video in videos if video.startswith('rd')])
-                # read the frames
-                if self.with_depth:
-                    human_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[0]),depth=True)
-                human_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,human_videos[1]))
-                if self.with_depth:
-                    robot_depth_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[0]),depth=True)
-                robot_rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,robot_videos[1]))
-                # unify the length of the frames
-                if self.with_depth:
-                    n_frames=min(human_depth_frames.shape[0],human_rgb_frames.shape[0],robot_depth_frames.shape[0],robot_rgb_frames.shape[0])
-                else:
-                    n_frames=min(human_rgb_frames.shape[0],robot_rgb_frames.shape[0])
+                # the videos whose name starts with 'hd'
+                videos=sorted([video for video in videos if video.startswith('hd')])
+                rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,videos[1]))
+                # the length of the video
+                n_frames=rgb_frames.shape[0]
                 # add the task start index to the list
-                self.task_start_idx.append(self.task_start_idx[-1]+n_frames)
-                # cut the frames to the same length
-                if self.with_depth:
-                    human_depth_frames=human_depth_frames[:n_frames]
-                human_rgb_frames=human_rgb_frames[:n_frames]
-                if self.with_depth:
-                    robot_depth_frames=robot_depth_frames[:n_frames]
-                robot_rgb_frames=robot_rgb_frames[:n_frames]
-                # concatenate the egb and depth frames
-                if self.with_depth:
-                    human_frames=np.concatenate((human_rgb_frames,human_depth_frames),axis=3)
-                else:
-                    human_frames=human_rgb_frames
-                if self.with_depth:
-                    robot_frames=np.concatenate((robot_rgb_frames,robot_depth_frames),axis=3)
-                else:
-                    robot_frames=robot_rgb_frames
+                self.demo_start_idx.append(self.demo_start_idx[-1]+n_frames)
                 # append the frames to the list
-                self.human_data.append(human_frames)
-                self.robot_data.append(robot_frames)
+                self.data.append(rgb_frames)
+        for task in self.tasks:
+            # list of the demos for this task
+            demos=os.listdir('MIME/{0}'.format(task))
+            # iterate over evaluation demos from this task
+            for i in range(self.training_demos,self.evaluation_demos):
+                demo=demos[i]
+                # list of the videos for this demo
+                videos=os.listdir('MIME/{0}/{1}'.format(task,demo))
+                # the videos whose name starts with 'hd'
+                videos=sorted([video for video in videos if video.startswith('hd')])
+                rgb_frames=self.read_frames_from_video('MIME/{0}/{1}/{2}'.format(task,demo,videos[1]))
+                # the length of the video
+                n_frames=rgb_frames.shape[0]
+                # add the task start index to the list
+                self.demo_start_idx.append(self.demo_start_idx[-1]+n_frames)
+                # append the frames to the list
+                self.data.append(rgb_frames)
         # convert the lists to numpy arrays
-        self.human_data=np.concatenate(self.human_data, axis=0)
-        self.robot_data=np.concatenate(self.robot_data, axis=0)
-        self.task_start_idx=np.array(self.task_start_idx)
-        print('human data shape:',self.human_data.shape)
-        print('robot data shape:',self.robot_data.shape)
-        print('task_start_idx:',self.task_start_idx)
+        self.data=np.concatenate(self.data, axis=0)
+        self.demo_start_idx=np.array(self.demo_start_idx)
+        # compute the mean and the std of the dataset for each channel
+        self.stats=[np.mean(self.data,axis=(0,1,2)),np.std(self.data,axis=(0,1,2))]
+        print('data shape:',self.data.shape)
+        print('task_start_idx:',self.demo_start_idx)
+        print('stats:',self.stats)
